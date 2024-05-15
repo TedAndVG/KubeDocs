@@ -1,0 +1,27 @@
+# Pod description:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: PodName
+  labels:
+    environment: dev
+    app: AppName
+spec:
+  containers:
+  - name: ContainerName
+    image: DockerhubUser/ImageName:version(or tag)
+    ports:
+    - containerPort: <ContainerPortNumber>
+
+# Commands:
+Create pod:         kubectl create -f podsfile.yaml
+Run without file:   kubectl run <pod-name> --image=<image-name> --port=<port-number>
+Pods list:          kubectl get pods
+Get pod labels:     kubectl get pod --show-labels
+Get labels in cols: kubectl get pods -L label1,label2,...
+Add label to pod:   kubectl label pod <pod-name> <label-name>=<value>
+Label selectors:
+    = == !=:    
+    in:         
+
+ 
