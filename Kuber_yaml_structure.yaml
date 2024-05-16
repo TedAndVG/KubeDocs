@@ -1,12 +1,24 @@
-# Pod description:
+Content:
+    - Labels
+    - Pods organazing with labels
+    - Label selectors
+    - Labels usage in Node servers
+    - Annotations
+    - Namespaces
+    - Pods deletion
+
+#=== Pod description:
 apiVersion: v1
 kind: Pod
 metadata:
   name: PodName
+  namespace: dev # Create in 'dev' namespace (ex.), see Namespaces section.
   labels:
     environment: dev
     app: AppName
 spec:
+  nodeSelector: # Assign the pod to run on a specified Node that has 'gpu: true' label (see Node section):
+    gpu: "true"
   containers:
   - name: ContainerName
     image: DockerhubUser/ImageName:version(or tag)
@@ -15,13 +27,108 @@ spec:
 
 # Commands:
 Create pod:         kubectl create -f podsfile.yaml
-Run without file:   kubectl run <pod-name> --image=<image-name> --port=<port-number>
-Pods list:          kubectl get pods
-Get pod labels:     kubectl get pod --show-labels
-Get labels in cols: kubectl get pods -L label1,label2,...
-Add label to pod:   kubectl label pod <pod-name> <label-name>=<value>
-Label selectors:
-    = == !=:    
-    in:         
+Run manually:       kubectl run <pod-name> --image=<image-name> --port=<port-number>
 
- 
+Get Pods list:      kubectl get pods (po)
+    Get all pods in all namespaces:    kubectl get po --all-namespaces
+    
+Labels: (also, Labels can be assigned to any kube object)
+    Add label to pod:   kubectl label pod <pod-name> <label-name>=<value>
+    Get pod labels:     kubectl get pod --show-labels
+    Get labels in cols: kubectl get pods -L label1,label2,...
+    Get pods with specific label:
+        kubectl get pods -l <label>
+    Get pods with-OUT specific label:
+        kubectl get pods -l '!<label>'
+        Label selectors:
+            ',' glues as logical 'and':
+            = == !=:    kubectl get pods -l <label>=<value>'
+                        kubectl get pods -l <label>!=<value>'
+            in: kubectl get pods -l '<label> in (<value>[,<val2>[..]])'
+                kubectl get pods -l '<label> notin (<value>[,<val2>[..]])'         
+Annotations:
+    Add annotation: kubectl annotate pod <podName> company_name/creator_email="me@example.com"
+
+Delete pods:
+    Delete pod: kubectl delete -f file_with_pod_tobe_deleted.yaml
+                                        ## file_with_pod_tobe_deleted.yaml:
+                                        # ---
+                                        # apiVersion: v1
+                                        # kind: Pod
+                                        # metadata:
+                                        #   name: tobe_deleted_pod
+                                        #   labels:
+                                        #     env: dev
+                                        #     app: some_app
+                                        # spec:
+                                        #   containers:
+                                        #   - name: tobe_deleted_cont
+                                        #     image: tbs/img:1.0
+                                        #     ports:
+                                        #     - containerPort: 8080
+    Delete pod manually:    kubectl delete po <podname>
+    Delete pod matching given labels:   kubectl delete po -l labelname=value
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+
+
+#=== Node description:
+---
+kind: Node
+metadata:
+    name:
+    label: 
+    
+# Commands:
+Describe Node:
+    kubectl describe node <node-name>
+Labels:
+    label operations are similar to Pods:
+        Add label to Node:  kubectl label node <node-name> gpu=true (ex., means that node has gpu)
+    
+#=== Namespaces
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev (ex., namespace name)
+
+
+# Commands:
+Create Namespace:       kubectl create -f nsfile.yaml
+Create manually:        kubectl create namespace <name>
+Get namespaces list:    kubectl get namespaces (ns)
+Get all pods in all namespaces:     kubectl get po --all-namespaces
+Delete namespace manually:          kubectl delete ns <ns_name> # <- also deletes all pods in 'ns_name' namespace!
+Delete namespace with yaml: kubectl delete -f namespace.yaml
+                                                ## namespace.yaml:
+                                                # ---
+                                                # apiVersion: v1
+                                                # kind: Namespace
+                                                # metadata:
+                                                # name: ns_name
+
+
+
+
+
+
+
+
+
+
