@@ -30,7 +30,8 @@ Create pod:         kubectl apply -f podsfile.yaml
 Run manually:       kubectl run <pod-name> --image=<image-name> --port=<port-number>
 
 Get Pods list:      kubectl get pods (po)
-    Get all pods in all namespaces:    kubectl get po --all-namespaces
+    All pods in all namespaces:    kubectl get po --all-namespaces
+    Pods list by watching:   kubectl get pods --watch (or --w)
     
 Labels: (also, Labels can be assigned to any kube object)
     Add label to pod:   kubectl label pod <pod-name> <label-name>=<value>

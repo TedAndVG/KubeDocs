@@ -1,0 +1,147 @@
+Content:
+    - ReplicationController
+    - Creating and observing ReplicationController
+    - Deletion of Pod, controlled by ReplicationController
+    - Manual creation of Pod, which label matches the label selector of ReplicationController
+    - Move Pod out of ReplicationController scope range
+    - Pod template changing in ReplicationController
+    - Deletion of ReplicationController
+    - ReplicaSet
+    - Comparing ReplicaSet to ReplicationController
+    - Creation and observing ReplicaSet
+    - Deleting ReplicaSet
+    - Manually creation of additional Pods, which label matches the label selector of ReplicaSet
+
+ReplicationController - is a Kube resource that maintains continuous functioning of its pods, keeps necessary state and count of pods.
+ReplicaSet            - is a new generation of ReplicaController
+    
+#=============== Replication controller ===============
+---
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: rc-name
+spec:
+  replicas: 3
+  selector:
+    app: kuber # template.metadata.labels.app must match to this label
+  template:
+    metadata:
+      name: kuber-app
+      labels:
+        app: kuber # must match the RC.spec.selector.app value
+    spec:
+      containers:
+      - name: cont-name-1
+        image: location/rc-image-1
+        ports:
+        - containerPort: <ContainerPortNumber>
+
+# Commands:
+Create RC:  kubectl apply -f rc-kube.yaml
+Get pods:   kubectl get pods
+    Get pods by watching:   kubectl get pods --watch (or --w)
+    
+Delete pod: (after deletion RC will restore them according to RC config)
+    Delete manualy: kubectl delete -n default pod <pod-name>
+    
+Try to add additional pod: (RC will register the pod but will not start it if total count exceeds the replicas specified)
+    Additional pod: kubectl apply -f additionall_pod.yaml
+                                                ## additionall_pod.yaml:
+                                                # ---
+                                                # apiVersion: v1
+                                                # kind: Pod
+                                                # metadata:
+                                                #   name: additional-pod
+                                                #   labels:
+                                                #     app: kuber
+                                                # spec:
+                                                #   containers:
+                                                #   - name: cont-name-1
+                                                #     image: location/rc-image-1
+                                                #     ports:
+                                                #     - containerPort: 8000
+                                                (if we change label.app value, the will start out of specified replica scope)
+Note:   Adding another label to the pod in addition to existing will not affect the replica set
+    Additional label:   kubectl label pod <pod-name-in-set> env=dev
+        Show labels:    kubectl get pods --show-labels
+        
+Note:   For a RC-controlled running pod changing the label, related to RC, will result to placing that pod out of RC control. 
+        Then RC will create a new pod instead.
+        The placed-out pod will continue to run by its own, so we can do something with it - troubleshooting, deleting, etc.
+
+Note:   We can change container image, 
+        but for RC to recreate the pods with ne image, 
+        the running pods with current image need to be deleted.
+        As they are being deleted, RC will create new pods with new image intead of each deleted ones.
+
+Delete ReplicationController:   kubectl delete rc rc-name
+
+
+
+#===================== ReplicaSet =======================
+ReplicaSet: 
+    - is a new generation of ReplicaController
+    - ReplicaSet fully substitutes ReplicaController
+    - ReplicaSet is being created automatically, on creation of a higher level resource - Deployment
+# below is ReplicaSet, compare it with ReplicaController:
+---
+apiVersion: app/v1
+kind: ReplicaSet
+metadata:
+  name: kuber-rs-1
+  labels: # label(s), attached to ReplicaSet, as my be assigned to any other Kube object
+    app: kuber-rs
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      env: dev
+  template:
+    metadata:
+      labels:
+        env: dev
+    spec:
+      containers:
+      - name: kuber-app
+        image: location/kuber
+
+# commands
+Create ReplicaSet:  kubectl apply -f rs.yaml
+Get ReplicaSet:     kubectl get rs
+Pods list:          kubectl get pods
+
+
+ ---
+apiVersion: app/v1
+kind: ReplicaSet
+metadata:
+  name: kuber-rs-2
+spec:
+  replicas: 3
+  selector:
+    # template must match expressions below:
+    matchExpressions:    # template's labels
+      - key: app         #  should contain 'app' key,
+        operator: In     #   which value sould be 'IN'
+        values:          #    at least one of the
+          - kuber        #     following values: [ kuber, http-server ]
+          - http-server  # AND ('-'s are glued with logical 'AND')
+      - key: env         #  a key 'env'
+        operator: Exists #   should exist, value doesn't matter
+    #  'operator' can be one of [ In, NotIn, Exists, DoesNotExist ]
+
+  # matchExpressions result is 'true' for the following template,
+  #  it will be selected:
+  template:
+    metadata:
+      labels:
+        app: kuber  # app key value is IN 'kuber' - true |
+        env: dev    # env key exists - true              +-> matchExperession = true, template selected
+    spec:
+      containers:
+      - name:  kuber-app
+        image: location/kuber
+ 
+ 
+ 

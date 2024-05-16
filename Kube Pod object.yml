@@ -1,0 +1,45 @@
+Content:
+    - Container starting
+    - Started pod observation
+    - Creating pod from yaml
+    - Connecting to pod via port-forwarding
+    - Viweing logs
+    
+# Pod description:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-name
+  labels:
+    environment: dev
+    app: app-name
+spec:
+  containers:
+  - name: cont-name
+    image: DockerhubUser/ImageName:version(or tag)
+    ports:
+    - containerPort: <ContainerPortNumber>
+
+# Commands:
+Create pod:     kubectl apply -f podsfile.yaml
+Run manually:   kubectl run <podname> --image=<image-name> --port=<port-number>
+Pods list:      kubectl get pods
+Pods list by watching:   kubectl get pods --watch (or --w)
+Get pod info in yaml format:   kubectl get pod pod-name -o yaml
+Pod description:    kubectl describe pod <podname>
+
+Enter into running container:
+    Pod contains single container:      kubectl exec -it pod-name -- /bin/bash
+    Pod contains multiple containers:   kubectl exec -it pod-name --container cont-name -- /bin/bash
+
+Port-forward on pod:    kubectl port-forward pod-name <external-port>:<internal-port>
+(Real access to pod is made via Kube Service)
+
+Logs watch: 
+    single containered pod:     kubectl logs pod-name
+    multiple containered pod:   kubectl logs pod-name --container cont-name
+    (on pod deletion logs are also deleted)
+
+
+
+

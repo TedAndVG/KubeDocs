@@ -1,0 +1,96 @@
+Content:
+    - Creating Deployment
+    - App update with kubectl
+    - Deleting Deployment object
+    - Creating Deployment from yaml
+    - Creating object 'Service'
+    - App deployment has 2 updating strategy:
+        - RollingUpdate (replaces new N pods at a time, no downtime )
+        - Recreate      (deletes all old pods and creates new ones, will be downtime)
+    - Deployment revision history
+    - Rollback app to needed version
+
+Note:   Creating a Deployment automatically creates replicaSet object.
+
+Note:   For Deployment to update the app, we need to change 'template' section
+        Make changes in template section and do 'kubectl apply -f deployment.yaml
+         and "kubectl get pods -l app=http-server --watch"
+
+Creating Deployment manually:   kubectl create deployment <depl-name> --image=location/kuber --port=<port> --replicas=3
+Get Deployment info:            kubectl deployment <depl-name> -o yaml
+Change container image tag/version:     kubectl set image deployment/<depl-name> <container-name>=location/kuber:0.1 --record
+                                        # - point particular container, because pod may contain several containers
+                                        # - take <container-name> ffrom "kubectl deployment <depl-name> -o yaml"
+                                        # - '--record' - in order to write revision history (considered later)
+
+
+Note:   ReplicaSet deals with pods whereas Deployment deals with ReplicaSets
+Note:   While changing image version, Deployment creates a new ReplicaSet with changed image version and deletes all pods from the old ReplicaSet.
+        But it does not delete the old ReplicaSet, just keeps 0 number of its pods.
+
+Delete Deployment manually:  kubectl delete -n default deployment <depl-name>
+
+# Creating Deployment from yaml
+---
+apiVersion: app/v1
+kind: Deployment
+metadata:
+  name: kuber
+  labels:
+    app: kuber
+spec:
+  replicas: 5
+  minReadySeconds: 10 # for delay - in 10 seconds new pod considered to be accessable
+  strategy:
+    rollingUpdate:  # One of 2:
+                    #       - RollingUpdate
+                    #       - Recreate (in this case 'rollingUpdate' section not needed)
+      maxSurge: 1       # -> how many pods should be added at a time..
+      maxUnavailable: 1 # -> ..and how many pods whould be deleted at a time
+    type: RollingUpdate     # or 'Recreate'
+  selector:
+    matchLabels:
+      app: http-server
+  template:
+    metadata:
+      labels:
+        app: http-server
+    spec:
+      containers:
+      - name:  kuber-app
+        image: location/kuber:v1.0
+        ports:
+        - containerPort: 8000
+
+Create Deployment from yaml: kubectl apply -f deployment.yaml --record
+
+Connect to Deployment:
+    is made through a service:  kubectl apply -f service.yaml
+                                            # service.yaml:
+                                            # ---
+                                            # apiVersion: v1
+                                            # kind: Service
+                                            # metadata:
+                                            #   name: kkuber-service
+                                            # spec:
+                                            #   selector:
+                                            #     app: http-server
+                                            #   ports:
+                                            #     - protocol: TCP
+                                            #     port: 80          # Service's port
+                                            #     targetPort: 8000  # Container's port
+                                            #   type: NodePort      # Service type
+
+Watch the created Deployment:
+    kubectl get pods -l app=http-server --watch
+
+Watch rollout status of Deployment:
+    kubectl rollout status deployment <depl-name>
+        Watch the process with "kubectl rollout status deployment <depl-name>"
+
+Deployment revision history:        kubectl rollout history deployment <depl-name>  # shows deployment update history
+Rollback app to previous version:   kubectl rollout undo deployment <depl-name>     # rolls back deployment to previous version
+Rollback app to needed version:     kubectl rollout undo deployment <depl-name> --to-revision=1
+                                    # The above rolls back deployment to version 1 (taken from "kubectl rollout history ..")
+                                    # Roll back uses previous ReplicaSets that had 0 number of running pods,
+                                    #  that's why we didn't delete old RS-s.
