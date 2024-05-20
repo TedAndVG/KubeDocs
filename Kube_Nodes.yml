@@ -1,0 +1,16 @@
+#=== Node description:
+---
+kind: Node
+metadata:
+    name:
+    label: 
+    
+# Commands:
+Describe Node:
+    kubectl describe node <node-name>
+Labels:
+    label operations are similar to Pods:
+        Add label to Node:  kubectl label node <node-name> gpu=true (ex., means that node has gpu)
+
+Get nodes:  kubectl get nodes -o wide # shows status, roles, internal-IP, external-IP, OS-image, kernel, cont.-runtime, age, version
+

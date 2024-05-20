@@ -1,0 +1,28 @@
+#=== Namespaces
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev (ex., namespace name)
+
+
+# Commands:
+Create Namespace:       kubectl create -f nsfile.yaml
+Create manually:        kubectl create namespace <name>
+Get namespaces list:    kubectl get namespaces (ns)
+Get all pods in all namespaces:     kubectl get po --all-namespaces
+Delete namespace manually:          kubectl delete ns <ns_name> # <- also deletes all pods in 'ns_name' namespace!
+Delete namespace with yaml: kubectl delete -f namespace.yaml
+                                                ## namespace.yaml:
+                                                # ---
+                                                # apiVersion: v1
+                                                # kind: Namespace
+                                                # metadata:
+                                                # name: ns_name
+
+# Kube objects hierarchy:
+
+Deployment:
+    ReplicaSet:
+        Pod:
+            Countainer:

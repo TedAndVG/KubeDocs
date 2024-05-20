@@ -1,0 +1,147 @@
+# Services
+
+Content:
+    - Creating Deployment with its Service
+    - Access to Pod via Service
+    - Creating Pod and Service with multiple ports
+    - Discovering Service using env. variables
+    - Discovering Service via DNS
+    - Endpoints for Service
+    - Creating Endpoints object and Service for it
+
+Sercvice types:
+    - ClusterIP (default)   - accessible only within the cluster, no access from outside.
+    - NodePort              - 
+    - LoadBalancer          - 
+    - ExternalName          - 
+# Create Service, get service IP from listing, curl IP:<service-port>
+
+Delete Service manually: kubectl delete ...
+
+# Creating Deployment from yaml: ===================
+---
+apiVersion: app/v1
+kind: Deployment
+metadata:
+  name: kuber
+  labels:
+    app: kuber
+spec:
+  replicas: 5
+  minReadySeconds: 5
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: http-server
+  template:
+    metadata:
+      labels:
+        app: http-server
+    spec:
+      containers:
+      - name:  kuber-app
+        image: location/kuber:v1.0
+        ports:
+        - containerPort: 8000 
+
+Create Deployment: kubectl apply -f deployment.yaml --record
+
+
+Create Service manually: kubectl expose ...
+
+# Creating Service from service.yaml: ======================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuber-service
+spec:
+  selector:
+    app: http-server
+  ports:
+    - protocol: TCP
+      port: 80 # service port for outside
+      targetPort: 8000 # container port
+  type: ClusterIP # by default, if not mentioned
+
+Create Service: kubectl apply -f service.yaml
+Get Service:    kubectl get svc
+
+
+################################################
+# - Creating Pod and Service with multiple ports
+
+# Creating Pod and Service with multiple ports:
+# Pod:
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kuber-app-manual
+  labels:
+    app: web-server
+spec:
+  containers:
+  - name: kuber-app-image
+    image: DockerhubUser/kuber:v2.0
+    ports:
+      - name: http
+        containerPort: 8000
+      - name: https
+        containerPort: 8000
+
+# Service:
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuber-app-manual-service
+spec:
+  selector:
+    app: web-server
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: https
+      port: 443
+      targetPort: https
+ 
+Create Pod and Service with multiple ports: kubectl apply -f pod-svc-multy-ports.yaml
+Get Services:    kubectl get svc -o wide
+
+Delete Service manually: kubectl delete -f pod-svc-multy-ports.yaml
+
+############################################
+# - Discovering Service using env. variables
+ 
+Get into a pod, do 'env',
+    find lines starting with <SERVICE_NAME>+postfix_words, like:
+        KUBER_SERVICE_SERVICE_PORT=80 # 80 = is the port stated in 'service.yaml' above
+        KUBER_SERVICE_SERVICE_HOST=172.20.0.191 # this is the ClusterIP of the service
+        KUBER_SERVICE_PORT_80_TCP=tcp://172.20.0.191:80
+
+############################################
+# - Discovering Service via DNS
+Get into a pod, do 'env',
+    do cat /etc/resolv.conf:
+        nameserver 172.20.0.10
+        search default.svc.cluster.local svc.cluster.local cluster.local eu-west-3.compute.internal
+        options ndots:5
+        
+    do curl http://'service-name'.'namespace'.svc.cluster.local
+    ex.: curl http://kuber-service.default.svc.cluster.local
+        <...Response from server>
+    
+    apt update
+    apt-get install dnsutils
+    nslookup kuber-service.default.svc.cluster.local
+    <..returns IP address>
+
+
+############################################
+# - Endpoints for Service

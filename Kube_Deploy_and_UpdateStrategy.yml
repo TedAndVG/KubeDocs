@@ -20,7 +20,7 @@ Creating Deployment manually:   kubectl create deployment <depl-name> --image=lo
 Get Deployment info:            kubectl deployment <depl-name> -o yaml
 Change container image tag/version:     kubectl set image deployment/<depl-name> <container-name>=location/kuber:0.1 --record
                                         # - point particular container, because pod may contain several containers
-                                        # - take <container-name> ffrom "kubectl deployment <depl-name> -o yaml"
+                                        # - take <container-name> from "kubectl deployment <depl-name> -o yaml"
                                         # - '--record' - in order to write revision history (considered later)
 
 
@@ -70,8 +70,8 @@ Connect to Deployment:
                                             # ---
                                             # apiVersion: v1
                                             # kind: Service
-                                            # metadata:
-                                            #   name: kkuber-service
+                                            # metadata:2
+                                            #   name: kuber-service
                                             # spec:
                                             #   selector:
                                             #     app: http-server

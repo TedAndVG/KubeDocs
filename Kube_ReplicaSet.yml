@@ -1,0 +1,66 @@
+#===================== ReplicaSet =======================
+ReplicaSet: 
+    - is a new generation of ReplicaController
+    - ReplicaSet fully substitutes ReplicaController
+    - ReplicaSet is being created automatically, on creation of a higher level resource - a Deployment
+# below is ReplicaSet, compare it with ReplicaController:
+---
+apiVersion: app/v1
+kind: ReplicaSet
+metadata:
+  name: kuber-rs-1
+  labels: # label(s), attached to ReplicaSet, as they may be assigned to any other Kube objects
+    app: kuber-rs
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      env: dev
+  template:
+    metadata:
+      labels:
+        env: dev
+    spec:
+      containers:
+      - name: kuber-app
+        image: location/kuber
+
+# commands
+Create ReplicaSet:  kubectl apply -f rs.yaml
+Get ReplicaSet:     kubectl get rs
+Pods list:          kubectl get pods
+
+
+---
+apiVersion: app/v1
+kind: ReplicaSet
+metadata:
+  name: kuber-rs-2
+spec:
+  replicas: 3
+  selector:
+    # template must match expressions below:
+    matchExpressions:    # template's labels
+      - key: app         #  should contain 'app' key,
+        operator: In     #   which value sould be 'IN'
+        values:          #    at least one of the
+          - kuber        #     following values: [ kuber, http-server ]
+          - http-server  # AND ('-'s are glued with logical 'AND')
+      - key: env         #  a key 'env'
+        operator: Exists #   should exist, value doesn't matter
+    #  'operator' can be one of [ In, NotIn, Exists, DoesNotExist ]
+
+  # matchExpressions result is 'true' for the following template,
+  #  it will be selected:
+  template:
+    metadata:
+      labels:
+        app: kuber  # app key value is IN 'kuber' - true |
+        env: dev    # env key exists - true              +-> matchExperession = true, template selected
+    spec:
+      containers:
+      - name:  kuber-app
+        image: location/kuber
+ 
+ 
+ 

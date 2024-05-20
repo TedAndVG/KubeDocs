@@ -22,7 +22,7 @@ spec:
 
 # Commands:
 Create pod:     kubectl apply -f podsfile.yaml
-Run manually:   kubectl run <podname> --image=<image-name> --port=<port-number>
+Run (create) pod manually:   kubectl run <podname> --image=<image-name> --port=<port-number>
 Pods list:      kubectl get pods
 Pods list by watching:   kubectl get pods --watch (or --w)
 Get pod info in yaml format:   kubectl get pod pod-name -o yaml

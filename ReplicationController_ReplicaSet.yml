@@ -47,31 +47,33 @@ Delete pod: (after deletion RC will restore them according to RC config)
     
 Try to add additional pod: (RC will register the pod but will not start it if total count exceeds the replicas specified)
     Additional pod: kubectl apply -f additionall_pod.yaml
-                                                ## additionall_pod.yaml:
-                                                # ---
-                                                # apiVersion: v1
-                                                # kind: Pod
-                                                # metadata:
-                                                #   name: additional-pod
-                                                #   labels:
-                                                #     app: kuber
-                                                # spec:
-                                                #   containers:
-                                                #   - name: cont-name-1
-                                                #     image: location/rc-image-1
-                                                #     ports:
-                                                #     - containerPort: 8000
-                                                (if we change label.app value, the will start out of specified replica scope)
+                                    ## additionall_pod.yaml:
+                                    # ---
+                                    # apiVersion: v1
+                                    # kind: Pod
+                                    # metadata:
+                                    #   name: additional-pod
+                                    #   labels:
+                                    #     app: kuber
+                                    # spec:
+                                    #   containers:
+                                    #   - name: cont-name-1
+                                    #     image: location/rc-image-1
+                                    #     ports:
+                                    #     - containerPort: 8000
+
+Note:   (if we change labels.app value, the additional will be started outside of specified replica scope)
+
 Note:   Adding another label to the pod in addition to existing will not affect the replica set
-    Additional label:   kubectl label pod <pod-name-in-set> env=dev
-        Show labels:    kubectl get pods --show-labels
+    Add additional label:   kubectl label pod <pod-name-in-set> env=dev
+        Show labels:        kubectl get pods --show-labels
         
 Note:   For a RC-controlled running pod changing the label, related to RC, will result to placing that pod out of RC control. 
         Then RC will create a new pod instead.
         The placed-out pod will continue to run by its own, so we can do something with it - troubleshooting, deleting, etc.
 
 Note:   We can change container image, 
-        but for RC to recreate the pods with ne image, 
+        but for RC to recreate the pods with the new image, 
         the running pods with current image need to be deleted.
         As they are being deleted, RC will create new pods with new image intead of each deleted ones.
 

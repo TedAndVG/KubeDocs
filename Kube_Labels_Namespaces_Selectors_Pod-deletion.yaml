@@ -45,8 +45,8 @@ Labels: (also, Labels can be assigned to any kube object)
             ',' glues as logical 'and':
             = == !=:    kubectl get pods -l <label>=<value>'
                         kubectl get pods -l <label>!=<value>'
-            in: kubectl get pods -l '<label> in (<value>[,<val2>[..]])'
-                kubectl get pods -l '<label> notin (<value>[,<val2>[..]])'         
+            in: kubectl get pods -l '<label> in ( <value>[,<val2>[..]] )'
+                kubectl get pods -l '<label> notin ( <value>[,<val2>[..]] )'         
 Annotations:
     Add annotation: kubectl annotate pod <podName> company_name/creator_email="me@example.com"
 
