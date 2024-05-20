@@ -1,0 +1,148 @@
+# Services
+
+Content:
+    - 'Headless Service'
+    - Service 'ExternalName' type
+    - Service 'NodePort'     type
+    - sessionAffinity for Service
+    - Service 'LoadBalancer' type
+    - externalTrafficPolicy purpose in Service
+
+Service types:
+    - ClusterIP (default)   - accessible only within the cluster, no access from outside.
+    - ExternalName          - accessable only within the cluster via domain-name, no access from internet
+    - NodePort              - accessible from internet (has a real-IP)
+    - LoadBalancer          - accessible from internet
+# Create Service, get service IP from listing, curl IP:<service-port>
+Delete Service manually: kubectl delete ...
+
+# Headless Service ========================
+Note: Headless Service used when we need access to all pods (matching the needed label)
+      within the cluster. In this case the service will not have a cluster IP
+      
+Note: Headless Service doesn't have a cluster-IP
+
+Note: Now from a pod we can NOT access to Headless Service via domain-name
+        'curl http://kuber-headless-service(+ .default.svc.cluster.local, postfix taken from pod's "nslookup kuber-service")' 
+        (name is from yaml below)
+      because:  Headless Service doesn't have a cluster-IP.
+
+      But:  doing "nslookup kuber-headless-service.default.svc.cluster.local"
+              will respond from the all pods matching the label
+
+      And:  we can access the Headless Service by the targetPort
+              curl http://kuber-headless-service.default.svc.cluster.local:8000
+              because: Headless Service doesn't have a cluster-IP, but has a domain name ('kuber-headless-service')
+
+So: There are cases when we need to connect to all pods at the same time
+
+# Creating Headless Service from yaml: ===================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuber-headless-service
+spec:
+  ClusterIP: None # <- Headless Service declared
+  selector:
+    app: http-server
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000 
+  type: ClusterIP
+
+Create Service: kubectl apply -f headless_service.yaml --record
+Create Service manually: kubectl expose ...
+
+# - Service 'ExternalName' type ===================
+# Creating ExternalName from yaml:
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-service
+spec:
+  type: ExternalName
+  externalName: example.com
+
+Create Service: kubectl apply -f headless_service.yaml --record
+
+< Read more elsewhere about ExternalName service >
+
+
+# =================================================
+# - Service 'NodePort' ============================
+How it works: particular_node's_external_ip:port -> Node's port -> Service -> 
+                randomly_selected_NODE -> randomly_selected_POD
+# Creating NodePort from yaml: ===================
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuber-service-nodeport
+spec:
+  externalTrafficPolicy:    local   # externalTrafficPolicy - denotes if the service desires to route
+  # externalTrafficPolicy:  cluster # external traffic to node-local or cluster-wide endpoints.
+                                    # 'local' preserves the client source IP and avoids a second hop
+                                    # for LoadBalancer and NodePort type services, but risks
+                                    # potentially impalanced traffic spreading.
+                                    # 'cluster' obscures the client sourceIP and may cause a second
+                                    # hop to another node, but should have good overall load-spreading.
+  sessionAffinity:        ClientIP # use this, when the same client need to access the same POD. (The clien IP is stored in cache)
+  selector:
+    app: http-server
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000 
+      nodePort:   30080 # port range: 30000-32767 - The port on each node on which this service is exposed
+                        #  when type=NodePort or LoadBalancer. Usually assigned by the system
+                        # If specified, it will be allocated to the service.
+                        # If unused or else, creation of the service will fail.
+                        # To avoid port conflicts, let kube take care of it by auto.
+                        # ex.: when service is created in AWS
+  type: NodePort
+
+
+Create Service: kubectl apply -f headless_service.yaml --record
+Note: from a pod service is still accessible by its domain-name ->
+        'curl http://kuber-service-nodeport'
+
+But:  the service is also accessable from internet via A NODE's EXTERNAL_IP ->
+        http://<EXTERNAL_IP>:30080 - all pods will respond in random order, one at a time.
+
+Note: here we deal with nodes (the external/internal_ip-s)
+       kubectl get nodes -o wide
+
+Note: When using a <port> on NodePort, that port will be open on ALL nodes within the cluster,
+      no matter is that pod present on any NODE or not 
+
+
+# =================================================
+# - Service 'LoadBalancer' type ===================
+Note: LoadBalancer is like an improved verion of NodePort.
+Note: LoadBalancer service is used only when cluster hosted in Cloud, not available on local cluster.
+
+How it works: client -> (LoadBalancer service, created by Cloud and assigned an endpoint) -> 
+                randomly_selected_NODE:<nodePort> -> Service -> 
+                  randomly_selected_NODE -> randomly_selected_POD
+
+# Creating LoadBalancer from yaml:
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuber-service-loadbalancer
+spec:
+  externalTrafficPolicy:  local # see above for this
+  selector:
+    app: http-server
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000 
+      # nopePort not specified - thus it will be assigned automatically, [30000-32767]
+  type: LoadBalancer
+
+Note: after creating LoadBalancer service, an External EndPoints will appear, provided by the Cloud (AWS, etc..)

@@ -9,11 +9,11 @@ Content:
     - Endpoints for Service
     - Creating Endpoints object and Service for it
 
-Sercvice types:
+Service types:
     - ClusterIP (default)   - accessible only within the cluster, no access from outside.
-    - NodePort              - 
-    - LoadBalancer          - 
-    - ExternalName          - 
+    - ExternalName          - accessable only within the cluster via domain-name, no access from internet
+    - NodePort              - accessible from internet (has a real-IP)
+    - LoadBalancer          - accessible from internet
 # Create Service, get service IP from listing, curl IP:<service-port>
 
 Delete Service manually: kubectl delete ...
@@ -49,7 +49,6 @@ spec:
         - containerPort: 8000 
 
 Create Deployment: kubectl apply -f deployment.yaml --record
-
 
 Create Service manually: kubectl expose ...
 
