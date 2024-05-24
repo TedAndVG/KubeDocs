@@ -1,0 +1,77 @@
+Content:
+    - Ingress and its purpose
+    - Ingress Controller setup on Minikube
+    - start Deployments and Services for them
+    - 'Ingress' object creation
+    - Local DNS setup using /etc/hosts in Linux
+    - Observing Ingress
+
+Note:   Ingress is for reducing cost instead of Services
+        Works on OSI's 7th level (allows to keep session's cookies) whereas        
+            Services work on 4th level.
+
+Note:   Ingress in order to work needs an Ingress Controller
+
+# =========================================
+# - Ingress Controller setup on Minikube
+    - minikube addons list      # shows list of addons
+    - minikube addons enable ingress # enables 'ingress' addon from the list
+     - kubevtl get pods --all-namespaces --watch    # watch the creation process
+
+
+# =========================================
+# - start Deployments and Services for them
+
+having Deployments with Services:
+    - deploy-svc-app-v1.yaml
+    - deploy-svc-app-v2.yaml
+    - deploy-svc-app-v3.yaml
+    
+    - Each of them is like:
+    # --------------------
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: kuber-v1
+          labels:
+            app: kuber-v1
+        spec:
+          replicas: 2
+          selector:
+            matchLabels:
+              app: http-server-v1
+          template:
+            metadata:
+              labels:
+                app: http:-server-v1
+            spec:
+              containers:
+              - name: kuber-app
+                image: location/kuber:v1
+                ports:
+                - containerPort: 8000
+    ---
+    apiVersion: v1
+    kind: Service 
+    metadata:
+      name: kuber-service-v1
+    spec:
+      selector:
+        app: http-server-v1
+      ports:
+        - protocol: TCP
+          port: 80
+          targetPort: 8000
+
+Deploying (start) them:
+    - kubectl apply -f deploy-svc-app-v1.yaml -f deploy-svc-app-v2.yaml -f deploy-svc-app-v3.yaml
+    
+Access to each service:
+    - curl http://kuber-service-v%
+        (respose from corresponding service)
+
+Now, NEXT, proceed with Ingress:
+# ==============================
+# - 'Ingress' object creation
+
+

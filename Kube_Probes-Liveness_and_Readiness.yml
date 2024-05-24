@@ -1,0 +1,12 @@
+# Probes: Liveness and Readiness
+
+Content:
+    - Что такое livenessProbe
+    - livenessProbe с механизмом проверки exec
+    - Конфигурация Probes
+    - livenessProbe с механизмом проверки tcpSocket
+    - livenessProbe с механизмом проверки httpGet
+    - Исследование unhealthy Pod
+    - Что такое readinessProbe и как он работает
+    - livenessProbe и readinessProbe в одном Deployment
+
