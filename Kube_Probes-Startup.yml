@@ -1,0 +1,82 @@
+# Probes: Liveness and Readiness
+
+Content:
+    - startupProbe
+    - httpHeaders for httpGet in Probe
+
+
+# ============================
+# - startupProbe
+
+Note: The idea is that sometimes we deal with old apps that requir more time for starting up.
+      In that cases it may be dificult to tune-up livenessProbe params without an impact for a reaction speed. Here the startupProbe comes out.
+
+
+#  File: deploy-all-probes.yaml
+.........
+spec:
+  template:
+    spec:
+      containers:
+      - name: kuber-app
+        image: location/kuber:v1.0
+        ports:
+        - containerPort: 8000
+        startupProbe:         # *********** startupProbe part: ***********
+          exec:               # === exec type ===
+            command:          # Probe checks the exit-code of the command below.
+            - cat             # - case, when exit-code == 0 is normal ---> app is READY
+            - /server-test.py # - case, when exit-code <> 0 is NOT normal, app NOT ready
+          initialDelaySeconds: 10 # Defaults to  0. Minimum value is 0.
+          failureThreshold:    30 # Defaults to  3. Minimum value is 1.
+          periodSeconds:       10 # Defaults to 10. Minimum value is 1.
+          # startupProbe takes control and keeps it for
+          #  initialDelaySeconds + periodSeconds * failureThreshold seconds,
+          #  during that period the exec.command should return at last 1 success ('echo $?' is 0)
+          #  (i.e. /server-test.py should be created in order for 'cat' to return exit-code=0).
+          # After that success (if it happens at all),
+          # startupProbe passes control to livenessProbe, which will continue its job further on
+          #
+          # If during that period the exec.command doesn't return any success,
+          # then the container will be restarted, and so on.
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds:       5
+        leavenessProbe:
+          exec:
+            command:
+            - cat
+            - /server-test.py
+          failureThreshold: 1
+          periodSeconds:    10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuber-http-allprobes-service
+spec:
+  selector:
+    app: kuber-http-allprobes
+  ports:
+    - protocol: TCP
+      port:          80 # service port
+      targetPort:  8000 # container port
+      nodePort:   30004
+  type: NodePort
+
+
+
+Start the above Deployment: kubectl apply -f deploy-all-probes.yaml
+Watch for EVENTs:           kubectl get events --watch
+
+Check container: <IP>:30004
+    <Response from Service>
+
+Note: if now we, for ex., remove /server-test.py from the Container,
+        livenessProbe will catch that and will restart the Container
+
+Delete the above Deployment: kubectl delete -f deploy-liveness-probe-exec.yaml
+

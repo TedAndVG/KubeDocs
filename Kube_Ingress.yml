@@ -16,11 +16,15 @@ Note:   Ingress in order to work needs an Ingress Controller
 # - Ingress Controller setup on Minikube
     - minikube addons list      # shows list of addons
     - minikube addons enable ingress # enables 'ingress' addon from the list
-     - kubevtl get pods --all-namespaces --watch    # watch the creation process
+     - kubectl get pods --all-namespaces --watch    # watch the creation process
 
 
 # =========================================
-# - start Deployments and Services for them
+# - start Deployments and Services for them (for Deployments)
+#   - deploy-svc-app-v1.yaml
+#   - deploy-svc-app-v2.yaml
+#   - deploy-svc-app-v3.yaml
+#     - ingress.yaml
 
 having Deployments with Services:
     - deploy-svc-app-v1.yaml
@@ -63,15 +67,79 @@ having Deployments with Services:
           port: 80
           targetPort: 8000
 
+# , then:
 Deploying (start) them:
     - kubectl apply -f deploy-svc-app-v1.yaml -f deploy-svc-app-v2.yaml -f deploy-svc-app-v3.yaml
     
 Access to each service:
-    - curl http://kuber-service-v%
+    - curl http://kuber-service-v1
         (respose from corresponding service)
 
 Now, NEXT, proceed with Ingress:
 # ==============================
 # - 'Ingress' object creation
+#     - ingress.yaml
 
+apiVersion: networking.k8s.io/v1
+kind: Ingressmetadata:
+  name: main-ingress
+spec:
+  rules:
+    - host: app.example.com # An existing registered host address
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: kuber-service
+                port:
+                  number: 80
+          - pathType: Prefix
+            path: /v1
+            backend:
+              service:
+                name: kuber-service-v1
+                port:
+                  number: 80
+          - pathType: Exact
+            path: /v2
+            backend:
+              service:
+                name: kuber-service-v2
+                port:
+                  number: 80
+    - host: app-v3.example.com # An existing registered host address
+      http:
+        paths:
+          - pathType: Exact
+            path: /
+            backend:
+              service:
+                name: kuber-service-v3
+                port:
+                  number: 80
+                
+# , then:
+Deploying (start) Ingress:
+    - kubectl apply -f ingress.yaml
+    - kubectl ing --all-namespaces --watch # (when used minikube its address ('minikube ip') 
+                                           #  matches the IP address from this listing)
 
+# ===========================================
+# - Local DNS setup using /etc/hosts in Linux
+
+For access to one of hosts described in yaml under '- host':
+    - register it with its IP address in /etc/hosts file
+    - or buy a hosting for it, ex.:  netlify.com
+    
+Access to each application:
+    - app.example.com    
+    - app.example.com/   # Prefix - the same as above
+    - app.example.com/v1 # Redirects to app v1
+      - app.example.com/v1wcghfwc    # the same as above, app v1 - Prefix
+      - app.example.com/v1<any_text> # the same as above, app v1 - Prefix
+    - app.example.com/v2 # Exact - should be exact /v2, otherwise redirects to app.example.com/
+    
+    - app.example.com
+        (respose from corresponding service)
