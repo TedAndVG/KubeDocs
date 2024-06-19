@@ -81,7 +81,8 @@ Now, NEXT, proceed with Ingress:
 #     - ingress.yaml
 
 apiVersion: networking.k8s.io/v1
-kind: Ingressmetadata:
+kind: Ingress
+metadata:
   name: main-ingress
 spec:
   rules:

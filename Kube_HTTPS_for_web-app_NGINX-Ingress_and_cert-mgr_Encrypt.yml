@@ -1,0 +1,339 @@
+Contents:
+	- Starting Deployments with their Services and Ingress
+	- Setting-up NGINX Ingress Сontroller in Kubernetes cluster
+	- Creating DNS "A" record for Network LoadBalancer
+	- Welcome to cert-manager
+	- Setting-up cert-manager in Kubernetes cluster
+	- Starting ClusterIssuer
+	- Ingress tune-up
+	- Certificate issuing scheme
+
+Source: https://www.youtube.com/watch?v=8ULmDxTzAVQ&list=PL3SzV1_k2H1VDePbSWUqERqlBXIk02wCQ&index=16
+
+# - Starting Deployments with their Services and Ingress
+Create 2 deployments, with different images:
+    
+        # ---------------------
+        # deploy-svc-app-1.yaml
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+        name: kuber-1
+        labels:
+            app: kuber-1
+        spec:
+        replicas: 2
+        selector:
+            matchLabels:
+            app: http-server-1
+        template:
+            metadata:
+            labels:
+                app: http-server-1
+            spec:
+            containers:
+            - name: kuber-app
+                image: location/kuber:v1.0
+                ports:
+                - containerPort: 8000
+        ---
+        apiVersion: v1
+        kind: Service 
+        metadata:
+        name: kuber-service-1
+        spec:
+        selector:
+            app: kuber-server-1
+        ports:
+            - protocol: TCP
+            port: 80
+            targetPort: 8000
+        type: ClusterIP
+        
+        # -----------------------------------
+        # deploy-svc-app-2.yaml, differences:
+        apiVersion: apps/v1
+        kind: Deployment
+        .....
+        name: kuber-2
+        ....
+            app: kuber-2
+        ....
+            app: http-server-2
+        ....
+                app: http-server-2
+            ....
+                image: location/kuber:v2.0
+                ....
+        ---
+        apiVersion: v1
+        kind: Service 
+        ....
+        name: kuber-service-2
+        ....
+            app: kuber-server-2
+        .... 
+
+Start Deployments:
+    - kubectl apply -f deploy-svc-app-1.yaml
+    - kubectl apply -f deploy-svc-app-2.yaml
+
+Create Ingress fro these 2 Deployments:
+        # ingress.yaml
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+        name: main-ingress
+        annotations:
+            kubernetes.io/ingress.class: nginx  # <- this is needed for correct functioning
+        spec:
+        rules:
+          - host: app-1.tbs.com # An existing registered host address tbs.com
+            http:
+              paths:
+                - pathType: Prefix
+                  path: /
+                  backend:
+                    service:
+                      name: kuber-service-1
+                      port:
+                        number: 80
+          - host: app-2.tbs.com # An existing registered host address tbs.com
+            http:
+              paths:
+                - pathType: Prefix
+                  path: /
+                  backend:
+                    service:
+                      name: kuber-service-2
+                      port:
+                        number: 80
+
+
+
+# ===========================================================
+# - Setting-up NGINX-Ingress Сontroller in Kubernetes cluster
+
+                  +-----  Kube Cluster  -------------------------------------------------------------+
+                  |                                       +---------------+     +------------------+  |
+                  |                                  +--> | Service app-1 | --> | Deployment app-2 |  |
+            +----NGINX-----+     +- MainIngress +    |    +---------------+     +------------------+  |
+Client: --> |   Ingress    | --> |   Ingress    | -->|                                                |
+            |  Controller  |     |  Controller  |    |    +---------------+     +------------------+  |
+            | LoadBalancer |     +- With Rules -+    +--> | Service app-2 | --> | Deployment app-2 |  |
+            +-- Service ---+                              +---------------+     +------------------+  |
+   <External-IP>         Cluster-IP                                                                   |
+   <Domain-Name>  |                                                                                   |
+                  +-----------------------------------------------------------------------------------+
+Note: <External-IP> = nslookup <Domain-Name>
+                 
+Note: There are a lot of Ingress controllers, we take NGINX Ingress controller
+
+Note: Set up an NGINX-Ingress controller from the site (take the link from the site and apply in Kube)
+
+# Creating NGINX-Ingress controller:
+Setting up NGINX-Ingress controller service:    kubectl apply -f https://<ingress-controller-yaml-from-site>
+    Get Ingress Controller SERVICES list:
+    kubectl get svc -n ingress-nginx
+        < Response: output list with created ingress-nginx-controller as the name, its type is load-balancer, its cluster-IP, EXTERNAL-IP as XXXX, ports, age>
+
+Note:   We will use that XXXX EXTERNAL-IP address (as a domain name) of the created LoadBalancer from above output    
+
+Note:   The XXXX EXTERNAL-IP == the Ingress's LB-Domain-name, they are the same.
+
+# Create Ingress itself from above ingress.yaml:
+Create Ingress itself:  kubectl apply -f ingress.yaml
+    Describe Ingress: kubectl describe ingress
+                        < Response: description with Hosts, Paths, Backends >
+                        
+    Get the Domain name of the LoadBalancer:    kubectl get ingress
+                                                    < Response: NAME: main-ingress, HOSTS: app-1.tbs.com,app-2.tbs.com, 
+                                                                ADDRESS: LB-Domain-name of the load-balancer, PORTS, AGE>
+                                                                # The XXXX EXTERNAL-IP == the Ingress's LB-Domain-name, they are the same.
+
+    Get the IP address that belongs to that LoadBalancer:   nslookup <LB-Domain-name>
+                                                                < Response: YYYY as an IP - it's static>
+            
+        Note:   Normally there are several IPs.
+                The number of IP addresses attached to this LoadBalancer depends on the number
+                of availability zones this network LoadBalancer resides in.
+
+Check:  curl -H "Host: app-1.tbs.com" http://XXXX # "-H' - to pass a single arg in the url header, after http://XXXX/
+            <Response from v1>
+Check:  curl -H "Host: app-2.tbs.com" http://XXXX
+            <Response from v2>
+
+
+
+# ===========================================================
+# - Creating DNS "A" record for Network LoadBalancer
+Now:    Go to the hoster site, where the 'tbs.com' was registered and
+        create records that will redirect from tbs.com
+        - create "app-1" record of 'A' type and YYYY IP address from above nslookup response
+        - create "app-2" record of 'A' type and YYYY IP address from above nslookup response
+
+Note:   If we use "Route-53" on Amazon, we can use resources of Amazon as an 'A' record,
+        namely, hostname of the Network LoadBalancer.
+
+BUT:    For now our connection is not secure yet.
+          
+
+
+# ===========================================================
+# - Welcome to cert-manager
+
+Site:   cert-manager.io
+        cert-manager.io/docs/
+
+Info:   cert-manager creates TLS certificates for workloads in your Kubernetes or OpenShift cluster and renews the certificates before they expire.
+        cert-manager can obtain certificates from a variety of certificate authorities, 
+        including - [ Let's Encrypt, HashiCorp Vault, Venafi and private PKI ]
+
+letsencrypt.org: Take one of the certificate authorities, for ex. - "Let's Encrypt"
+
+
+# ===========================================================
+# - Setting-up cert-manager in Kubernetes cluster
+
+Setting up cert-manager:    kubectl apply -f < take link from cert-manager.io/docs/installation/kubernetes >
+
+
+# ===========================================================
+# - Starting ClusterIssuer
+
+After setting up:   navigate to  cert-manager.io/docs/concepts -> Issuer
+                    ( We need to issue an "Issuer" object )
+                    and create staging and prod yamls.
+                    
+                    # staging_clusterIssuer.yaml ------------
+                    apiVersion: cert-manager.io/v1
+                    kind: ClusterIssuer
+                    metadata:
+                      name: letsencrypt-staging
+                    spec:
+                      acme:
+                        # you must replace this email address with your own.
+                        # Let's Encrypt will use this to contact you about expiring
+                        # certificates, and issues related to your account.
+                        email: tbs@tbs.com
+                        server: https://acme-staging-v02.api.letsencrypt.org/directory
+                        privateKeySecretRef:
+                          # Secret resource that will be used to store the ACME account's private key.
+                          name: letsencrypt-staging-private-key
+                        # Add a single challenge solver, HTTP01 using nginx
+                        solvers:    # Solving Challenges is made via:
+                        - http01:   #  HTTP01 or DNS01
+                          ingress:  
+                            class: nginx
+                    
+                    # prod_clusterIssuer.yaml ------------
+                    ....
+                      name: letsencrypt-prod
+                      ....
+                        server: https://acme-v02.api.letsencrypt.org/directory
+                    ....
+                    
+                    
+ACME:   The ACME Issuer type represents a single account registered with the 
+        Automated Certificate Management Environment (ACME) Certificate Authority server. 
+        When you create a new ACME Issuer, cert-manager will generate a private key 
+        which is used to identify you with the ACME server.
+        
+        Certificates issued by public ACME servers are typically trusted by client's computers by default. 
+        This means that, for example, visiting a website that is backed by an ACME certificate issued for that URL, 
+        will be trusted by default by most client's web browsers. ACME certificates are typically free.
+        # https://cert-manager.io/docs/configuration/acme/
+
+Issuers, and ClusterIssuers: are Kubernetes resources that represent certificate authorities (CAs) 
+        that are able to generate signed certificates by honoring certificate signing requests. 
+        All cert-manager certificates require a referenced issuer that is in 
+        a ready condition to attempt to honor the request.
+
+An example of an Issuer type is CA. A simple CA Issuer is as follows:
+       apiVersion: cert-manager.io/v1
+       kind: Issuer
+       metadata:
+         name: ca-issuer
+         namespace: mesh-system
+       spec:
+         ca:
+           secretName: ca-key-pair
+
+        This is a simple Issuer that will sign certificates based on a private key. 
+        The certificate stored in the secret ca-key-pair can then be used to trust 
+        newly signed certificates by this Issuer in a Public Key Infrastructure (PKI) system.
+
+Note:   First, use STAGING to ensure it's working (in .yaml):
+                        name: letsencrypt-staging
+                        server: https://acme-staging-v02.api.letsencrypt.org/directory
+                        
+Then:   On success at STAGING, apply it to PRODUCTION:
+                        name: letsencrypt-prod
+                        server: https://acme-v02.api.letsencrypt.org/directory
+
+Create Issuers:
+        - k apply -f staging_clusterIssuer.yaml
+        - k apply -f prod_clusterIssuer.yaml
+
+Check: k get clusterissuers.cert-manager.io
+        Result list:
+        - prod-staging
+        - letsencrypt-staging
+
+
+# ===========================================================
+# - Ingress tune-up
+NOW:
+    Back to ingress.yaml and add:
+           # ingress.yaml
+           ....
+           metadata:
+             annotations:
+               cert-manager.io/cluster-issuer: "letsencrypt-staging" # for making sure it's working
+           ....
+           spec:
+             tls:
+             - hosts:
+               - app-1.tbs.com  # Hostnames, that need that certificates
+               - app-2.tbs.com  # Hostnames, that need that certificates
+               secretName: app-tls
+           ....
+
+
+And apply changes:  k apply -f ingress.yaml
+
+
+# ===========================================================
+# - Certificate issuing scheme
+
+Get Certificate:
+        k get certificate
+        Result list (1):
+            - name=app-tls, ready=false, secret=app-tls, age=xx
+                        
+Note:   'app-tls' name refers to ingress.yaml->spec.tls.secretName: app-tls
+
+Then:   k get certificaterequests.cert-manager.io
+        Result list (2):
+            - app-tls-XYZ ISSUER=letsencrypt-staging, requestor=<......>
+        
+        k describe certificate
+
+Scheme:
+                                                                        +------- ACME only ! --------+
+  (optional)            (1)                           (2)               |    (3)           (4)       |
+    Ingress -> [ Object of 'Certificate' ] -> [ CertificateRequest ] -> | [ Order ] -> [ Challenge ] |
+                                                                        |                            |
+                                                                        +----------------------------+
+
+        k get orders.acme.cert-manager.io
+        Result list (3):
+            - app-tls-XYZU state=pending ....
+
+        k get challenges.acme.cert-manager.io
+        Result list (4):
+            - app-tls-XYZUVx state=pending DOMAIN: app-1.tbs.com ....
+            - app-tls-XYZUVy state=pending DOMAIN: app-2.tbs.com ....
+            # created 2 challenges for both our domains
+
+Note: After validation 'pending' state will turn to 'valid'

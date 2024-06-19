@@ -1,0 +1,44 @@
+11June2024
+
+AWS
+
+To access AWS, there are 3 options:
+    - AWS management Console (passwd+MFA)
+    - AWS Command Line Interface CLI, ( via access keys)
+    - AWS SDK (for code - protected by access keys)
+
+    Access keys:
+        - Are generated via the AWS Console
+        - Users manage their own access keys
+        - They are Secret, like passwords, don't share them
+        - Access Key ID ~= username
+        - Secret Access Key ~= password
+
+Install ASW CLI: download & install .msi
+    # aws --version
+
+
+    Creating Access Keys:
+        - Users -> user -> Security Credentials -> ... -> Create
+        - Download .csv
+        Get:
+            - Access Key ID
+            - Secret Access Key
+            - region
+        - # aws iam list-users
+          # aws iam list-users --no-verify-ssl
+            <Result List>
+        - Add/Remove to/from needed security group
+
+
+aws configure
+
+setx (AKID, SAK, RGN)
+
+
+aws sts get-caller-identity --no-verify-ssl
+aws eks update-kubeconfig --region eu-central-1 --name eks-migration
+
+
+
+

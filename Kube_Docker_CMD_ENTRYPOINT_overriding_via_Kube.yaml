@@ -1,0 +1,232 @@
+Content:
+	- CMD and ENTRYPOINT in Docker
+	- shell & exec forms difference for CMD & ENTRYPOINT instructions
+	- a simple web-app with args
+	- building a python web-app into a Docker Image
+	- Overriding default CMD params via Docker
+	- Creating a Deployment for a python web-app with args
+	- Overriding CMD instructions by using Kubernetes args
+	- Overriding ENTRYPOINT instructions by using Kubernetes's "command"
+	- Defining args into a list
+
+# ==============================
+# - CMD and ENTRYPOINT in Docker
+
+###################################################################
+# - shell & exec forms difference for CMD & ENTRYPOINT instructions
+
+EXEC:
+    FROM python:3.8.5 # <== ALWAYS try to use this version, with "[", "]" braces (see below for 'why')
+    COPY server.py /server/py
+    ENTRYPOINT ["python3", "-u", "server.py"] # <-- with braces
+    
+SHELL:
+    FROM python:3.8.5
+    COPY server.py /server/py
+    ENTRYPOINT python3 -u server.py # <-- without braces
+
+After building and run:
+    cd ../entrypoint-exec
+    docker build -t kuber:entrypoint-exec .
+    docker run -d -p 1111:8000 kuber:entrypoint-exec
+    
+    cd ../entrypoint-shell
+    docker build -t kuber:entrypoint-shell .
+    docker run -d -p 2222:8000 kuber:entrypoint-shell
+    
+    docker ps
+    docker exec -it xxx__exec__xxx /bin/bash
+    docker exec -it yyy__shell__yy /bin/bash
+    
+    in both containers 'ps aux' will show:
+        for EXEC:
+            # the app will run directly:
+            # any POSIX signals may be sent directly to app (if it can handle them) 
+            python3 -u server.py
+            
+        for SHELL:
+            # additional shell will be created, and the app under it (1 additional process):
+            # any POSIX signals will be cought by that shell and not sent deeper to the app
+            /bin/sh -c python3 -u server.py
+                |__ python3 -u server.py
+    stop dockers: docker stop xxx__exec__xxx yyy__shell__yy
+
+
+# ===============================================
+# - A simple web-app with args
+Let us say: our app takes some arguments (see below in 'CMD [...]'
+
+Docker file:
+    FROM python:3.8.5
+    COPY server.py /server/py # <-- the entry point being used in this example
+        # ======== This is for overriding the entry point,
+        # see description below in section 
+        # - Overriding ENTRYPOINT by using Kubernetes's "command":
+        COPY server-default.py /server-default/py
+        # =======================================
+    # The entry point for this example, defined by default:
+    ENTRYPOINT ["python3", "-u", "server.py"] # <-- Note: using with [] braces
+    CMD ["1","5","Some-Text"] # these are the app's ARGS by DEFAULT
+
+# ===============================================    
+# - building a python web-app into a Docker Image
+    Build the app image:  docker build -t location/kuber:v1.0-arg .
+    Run the app with DEFAULT ARGS:  docker run -d -p 8000:8000 location/kuber:v1.0-args #  running with DEFAULT ARGS
+    Stop:   docker ps
+            docker stop <container_id>
+     
+# ===============================================
+# - Overriding default CMD params via Docker     
+    Run the app with CUSTOM ARGS:   docker run -d -p 8000:8000 location/kuber:v1.0-args 2 3 TBS #  running with CUSTOM ARGS
+    Stop:   docker ps
+            docker stop <container_id>
+    
+    Push buil image into docker hub for future use in Kuber: docker push location/kuber:v1.0-args
+    
+# ===============================================
+# - Creating a Deployment for a python web-app with args
+
+# kuber-deploy.yaml
+    apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: kuber-args
+        labels:
+          app: kuber
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: http-server-args # hooks templates matching template.metadata.labels.app: http-server-args
+        template:
+          metadata:
+            labels:
+              app: http-server-args
+          spec:
+            containers:
+            - name: kuber-app
+              image: location/kuber:v1.0-args
+              ports:
+              - containerPort: 8000
+    ---
+    apiVersion: v1
+    kind: Service 
+    metadata:
+      name: kuber-args-service
+    spec:
+      selector:
+        app: http-server-args # hooks deployments matching spec.selector.matchLabels.app: http-server-args
+      ports:
+        - protocol: TCP
+          port: 80
+          targetPort: 8000
+          nodePort: 30001
+      type: NodePort
+
+Create Deployment: k apply -f kuber-deploy.yaml
+                   k get po -w
+                   k get svc
+                   k describe svc kuber-args-service
+Check in browser: <Endpoint_IP>:30001
+
+
+# ===============================================   
+# - Overriding CMD instructions by using Kubernetes args
+
+Make changhes in the .yaml:
+    # kuber-deploy.yaml
+    apiVersion: apps/v1
+      ....
+      spec:
+        ....
+        template:
+          ....
+          spec:
+            containers:
+            - name: kuber-app
+              image: location/kuber:v1.0-args
+              # Here: ===================
+              args: ["100","4444","Another-Text"] # <<<===== Overriding the app ARGUMENTS
+              # these args will override dockerfile's 'CMD ["1","5","text"]' default ARGS
+              # =========================
+              ports:
+              - containerPort: 8000
+          ....
+
+Apply changes:      k apply -f kuber-deploy.yaml
+
+Check in browser:   <Endpoint_IP>:30001
+
+
+# ===============================================
+# - Overriding ENTRYPOINT instructions by using Kubernetes's "command"
+
+Docker file:
+    FROM python:3.8.5
+    COPY server.py /server/py # <-- the entry point for the previous example, used by default in ENTRYPOINT section.
+        # === This wiil be used for overriding the DEFAULT entry point below:
+        # let's say, it take a single text argument "Example-Arg" (see below in .yaml)
+        COPY server-default.py /server-default/py
+        # ===========================================
+    # The DEFAULT entry point:
+    ENTRYPOINT ["python3", "-u", "server.py"] # <-- Note: using with [] braces
+    CMD ["1","5","text"] # these are the app's ARGS by DEFAULT
+
+Make changhes in the .yaml:
+    # kuber-deploy.yaml
+    apiVersion: apps/v1
+      ....
+      spec:
+        ....
+        template:
+          ....
+          spec:
+            containers:
+            - name: kuber-app
+              image: location/kuber:v1.0-args
+              # ===== Here, using 'command' for overriding the EntryPoint: =====
+              command: ["python3", "-u", "server-default.py"]
+              args: ["Example-Arg"] # <<<===== Passing the ARG for the overrided ENTRYPOINT (see the previous line)
+              # these arg will be passed to the overrided entrypoint "server-default.py"
+              # ================================================================
+              ports:
+              - containerPort: 8000
+          ....
+
+Apply changes:      k apply -f kuber-deploy.yaml
+                    k get po -w
+                    k get svc
+                    k describe svc kuber-args-service
+
+Check in browser:   <Endpoint_IP>:30001
+
+
+
+# ===============================================
+# - Defining args into a list
+
+Note: if there are amny args, we can represent them in a list
+
+Make changhes in the .yaml:
+    # kuber-deploy.yaml
+    apiVersion: apps/v1
+      ....
+      spec:
+        ....
+        template:
+          ....
+          spec:
+            containers:
+            - name: kuber-app
+              image: location/kuber:v1.0-args
+              # ====== args list: ===========
+              args:
+              - "123"       # Correct for number, in ""
+              - "5555"      # Correct for number, in ""
+              - 1           # INCORRECT for number - take numbers into "", otherwise will get an error on apply.
+              - Some-Another-Text # Texts are without ""
+              # =============================
+              ports:
+              - containerPort: 8000
+          ....
+

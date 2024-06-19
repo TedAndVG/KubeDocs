@@ -1,0 +1,140 @@
+# ============ Volumes ============ 19June2024
+
+Content:
+    - Docker storage drivers. Differencies between Docker Container and Docker Image. Docker writable(or container) layer
+    - Volume usage example in Docker containers
+    - Usage of type Volume: #emptyDir
+    - 'emptyDir' location on #Kubernetes Node
+    - Comparing of Docker storage driver: #overlay2 и #volume: emptyDir
+    - Mounting volume into existing directory with content
+    - 'subPath' usage
+
+
+
+# ====================================================================================
+# Docker storage drivers. Differencies between Docker Container and Docker Image. Docker writable(or container) layer
+
+
+
+# ====================================================================================
+# Volume usage example in Docker containers
+Note: Ex. below creates 2 containers
+      In each container there is the same mounted volume (mounted to /cache-1 and /cache-2)
+      Mounted volume is of type 'emptyDir'
+      
+    # deploy-volume.yaml
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: kuber
+      labels:
+        app: kuber
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: http-server
+      template:
+        metadata:
+          labels:
+            app: http-server
+        spec:
+          containers:
+          - name: kuber-app-1
+              image: location/kuber
+              ports:
+              - containerPort: 8000
+              volumeMounts:
+              - mountPath: /cache-1 # <--- Path, where to mount the volume, will be created by auto
+                name: cache-volume # <-- NAME of volume from 'volume' section below
+          - name: nginx
+              image: nginx
+              ports:
+              - containerPort: 80
+              volumeMounts:
+              - mountPath: /cache-2 # <--- Path, where to mount the volume, will be created by auto
+                name: cache-volume # <-- NAME of volume from 'volume' section below
+                # subPath: data
+          # ---- here is volume with its type 'emptyDir' ----
+          volumes:
+          - name: cache-volume # <-- NAME of volume used in containers above
+            # emptyDir - For the volume to be mounted, 
+            # in the container's NODE there will be allocated a disk space, in order to directly use it 
+            # (to be mounted to 'mountPath' section in containers above)
+            emptyDir: {} 
+
+ Start Deployment: > kubectl apply -f deploy-volume.yaml
+
+
+
+# ====================================================================================
+# Usage of type Volume: #emptyDir
+emptyDir: For type 'emptyDir' in the NODE where the container(s) will run,
+          Kube allocates a disk space as a volume, in order to directly use it 
+          (volume will be mounted to 'mountPath' section in containers)
+
+Note: 'emptyyDir' lives as long as the Pod that uses it.
+
+
+
+# ====================================================================================
+# 'emptyDir' location on #Kubernetes Node
+Location: /var/lib/kubelet/pods/<Pod_UIDs>/volumes/kubernetes.io~empty-dir/cache-volume
+
+
+
+# ====================================================================================
+# Comparing of Docker storage driver: #overlay2 и #volume: emptyDir
+Note: Prefer using emptyDir for performance
+    - emptyDir - uses direct disk
+    - overlay2 - /var/lib/docker/overlay2 - uses a layer within container
+
+
+
+# ====================================================================================
+# Mounting volume into existing directory with content
+
+    # deploy-volume-.yaml
+    apiVersion: apps/v1
+    ...
+    spec:
+      template:
+        spec:
+          containers:
+          - name: nginx
+              volumeMounts:
+              - mountPath: /dir-with-content # <--- Existing NOT EMPTY path, where to mount the volume
+                name: cache-volume
+                # subPath: data
+          volumes:
+          - name: cache-volume
+            emptyDir: {} 
+
+Effect: 'cache-volume' will override the content of '/dir-with-content/' (see below for 'subpath')
+
+Unless: Unless the 'subPath:' is declared
+
+# ====================================================================================
+# 'subPath' usage
+
+Note: Using 'subPath:' to mount volume to the non-empty mountPath in order not to override its content
+
+    # deploy-volume-.yaml
+    apiVersion: apps/v1
+    ...
+    spec:
+      template:
+        spec:
+          containers:
+          - name: nginx
+              volumeMounts:
+              - mountPath: /dir-with-content/tbs # <--- Existing NOT EMPTY path, where to mount the volume
+                name: cache-volume
+                subPath: tbs # <-- 'tbs' dir will be created under 'mountPath',
+                             #      and 'cache-volume' will be mounted to '/dir-with-content/tbs'
+          volumes:
+          - name: cache-volume
+            emptyDir: {} 
+
+
+

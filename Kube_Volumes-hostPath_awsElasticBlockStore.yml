@@ -1,0 +1,130 @@
+# ============ Volumes-2 ============ 19June2024
+
+Content:
+    - Using volume: emptyDir 2 Docker containers 
+    - volume type: #hostPath
+    - volume type: #awsElasticBlockStore
+    - Cons of volume: awsElasticBlockStore
+    - Container Storage Interface (CSI)
+
+
+
+# ====================================================================================
+# Using volume: emptyDir 2 Docker containers 
+
+    # two-containers_pod.yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: two-containers
+    spec:
+      restartPolicy: Never
+      containers:
+        # This container can only READ the same mounted volume:
+        - name: nginx-container
+          image: nginx
+          volumeMounts:
+          - name: shared-data
+            mountPath: /usr/share/nginx/html
+            readOnly: true # <--- Container can oly read from the volume
+        # The lowing container can WRITE to the same mounted volume:
+        - name: debian-container
+          image: debian
+          volumeMounts:
+          - name: shared-data
+            mountPath: /pod-data
+          command: ["/bin/sh"]
+          args: ["-c", "while true; do echo Hello from the debian container date: $(date)> /pod-data/index.html; sleep 1; done"] # <--- writes to mounted volume 
+      volumes:
+      - name: shared-data
+        # FileSystem in RAM:
+        emptyDir: # {}
+           medium: Memory
+
+Note:   If we set "emptyDir.medium: Memory" - Kube mounts a tmpfs (RAM-backed filesystem) for us instead, for speed-up.
+But:    tmpfs is cleared on node reboot.
+
+
+
+# ====================================================================================
+# volume type: #hostPath
+Note:   'hostPath' - usage not recommended due to some security risks (see below)
+
+    # hostpath-pod.yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: test-pd
+    spec:
+      containers:
+      - image: location/kuber
+        name: test-container
+        volumeMounts:
+        - mountPath: /test-pd
+          name: test-volume
+      volumes:
+      - name: test-volume
+        hostPath:
+          # directory location on host
+          path: /data
+          # this field is optional
+          type: Directory
+              
+Security Risk:  Unlike 'emptyDir', that destroys after Pod termination,
+                'hostPath' type directory with all its data remains afte a Pod destruction
+                and next time another Pod is created, the remained data are accessable for the new Pod.
+
+Advise:     Consider using 'readOnly: true'
+
+
+
+# ====================================================================================
+# volume type: #awsElasticBlockStore
+
+    # awsElasticBlockStore-pod.yaml
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: http-server
+    spec:
+      containers:
+      - image: location/kuber
+        name: http-server
+        volumeMounts:
+        - mountPath: /cache
+          name: aws-volume
+      volumes:
+      - name: aws-volume
+        # This AWS EBS volume must already exist.
+        awsElasticBlockStore:
+          volumeID: "vol-0111111111111"
+          fsType: ext4
+
+(See below)
+
+
+
+# ====================================================================================
+# Cons of volume: awsElasticBlockStore
+
+Note:   AWS-EBS-volume and the Node that uses it must be in the same availability zone.
+ 
+Note:   AWS-EBS-volume can be attached only to ONE Node.
+
+(See below)
+
+
+
+# ====================================================================================
+# Container Storage Interface (CSI)
+(See above)
+
+Workaround: Use of AWS ElasticFileSystem or NFS disks.
+
+But:    In order to use that service via Kube, we need to setup additional container 
+        'Storage Interface Driver' into our Kube Cluster
+
+For Info:    See 'Amazon EBS CSI Driver' for setup.
+
+
+

@@ -1,0 +1,474 @@
+# =========== ConfigMap ============ 17June2024
+
+ConfigMap: is for passing ENV VARs to Deployments/Pods/Containers
+
+Content:
+    - Using of ENV vars
+    - Using ENV vars as command-line arguments for Docker
+    - Using of #ConfigMap
+    - Location of ConfigMaps in the #Kubernetes Node
+    - Using ENV vars FROM ConfigMap
+    - Using ConfigMap as a configuration file in Volume
+    - Changing ConfigMap after Pod creation
+    - Container that uses ConfigMap as a #subPath volume mounting, will not get ConfigMap updates
+    - Creating ConfigMap by using kubectl
+
+ConfigMaps:
+    Configmap is an API object that is mainly used to store non-confidential data. 
+    The data that is stored in ConfigMap is stored as key-value pairs.
+
+
+# ===================================================
+# Using of ENV vars
+
+    # deployment.yaml
+    ---
+    apiVersion: app/v1
+    kind: Deployment
+    metadata:
+      name: kuber-1
+      labels:
+        app: kuber-1
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: http-server-1
+      template:
+        metadata:
+          labels:
+            app: http-server-1
+        spec:
+          containers:
+          - name:  kuber-app
+            image: location/kuber:v1.0
+            ports:
+            - containerPort: 8000
+            env: # ENV variables
+            - name: HELLO
+              value: "Hello"
+            - name: WORLD
+              value: "World"
+            - name: ENV_HELLO_WORLD
+              value: "$(HELLO)_$(WORLD) from Pod" # ENV var in ENV var
+
+
+    Start the Deployment:
+      > k apply -f deployment.yaml
+    
+    Get into the Pod and check ENV vars:
+      > env
+          Result: ENV vars with values defined in deployment.yaml
+          
+    Delete the deployment:
+      > k delete -f deployment.yaml
+
+
+# ===================================================
+# Using ENV vars as command-line arguments for Docker
+
+    # deployment.yaml
+    ---
+    apiVersion: app/v1
+    kind: Deployment
+    metadata:
+      name: kuber-1
+      labels:
+        app: kuber-1
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: http-server-1
+      template:
+        metadata:
+          labels:
+            app: http-server-1
+        spec:
+          containers:
+          - name:  kuber-app
+            image: location/kuber:v1.0
+            # --- HERE: Passing ENV vars with their values (defined below) as arguments to the container
+            # (See: Kube_Docker_CMD_ENTRYPOINT_overriding_via_Kube.yaml::"Overriding CMD instructions by using Kubernetes args" section)
+            args: ["$(INTERVAL)","$(COUNT)","$(TEXT_ARG)",]
+            # -----------------------------------------------
+            ports:
+            - containerPort: 8000
+            env: # ENV variables:
+            - name: INTERVAL
+              value: "3"
+            - name: COUNT
+              value: "4"
+            - name: TEXT_ARG
+              value: "Interval = $(INTERVAL). Desired number of prints = $(COUNT)." # ENV var in ENV var
+
+
+    Start the Deployment:
+      > k apply -f deployment.yaml
+    
+    Get into Lens and watch the Pod`s "Environment" for ENV vars.
+    In Lens do port-forward / Open with browser and see the results.
+        At the end remove port-forward.
+          
+    Delete the deployment:
+      > k delete -f deployment.yaml
+
+
+# ===================================================
+# Using of #ConfigMap
+
+    # configmap.yaml <<<<<<
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: demo-cm # <--- ConfigMap name used in deployment.yaml below
+    data:
+      # property-like keys; each key maps to a single value
+      interval: "5"
+      count: "3"
+      # file-like keys
+      properties:
+        Hello from TBS
+        Demo configuration
+        An example.
+      config.ini: "This is demo config"
+
+
+    Start the ConfigMap:
+      > k apply -f configmap.yaml
+    
+    In Lens -> Configuration -> ConfigMaps:
+      Result: demo-cm
+
+    # deployment.yaml
+    ---
+    apiVersion: app/v1
+    kind: Deployment
+    metadata:
+      name: kuber-1
+      labels:
+        app: kuber-1
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: http-server-1
+      template:
+        metadata:
+          labels:
+            app: http-server-1
+        spec:
+          containers:
+          - name:  kuber-app
+            image: location/kuber:v1.0
+            # --- HERE: Passing ENV vars with their values
+            # Defined in ConfigMap as arguments to the container
+            #   (See: Kube_Docker_CMD_ENTRYPOINT_overriding_via_Kube.yaml::"Overriding CMD instructions by using Kubernetes args" section)
+            args: ["$(INTERVAL)","$(COUNT)","$(TEXT_ARG)",]
+            ports:
+            - containerPort: 8000
+            env: # ENV variables from ConfigMap:
+            - name: INTERVAL
+              valueFrom:
+                ConfigMapKeyRef:
+                  name: demo-cm # <--- configMap name from above configmap.yaml
+                  key: interval
+            - name: COUNT
+              valueFrom:
+                ConfigMapKeyRef:
+                  name: demo-cm # <--- configMap name from above configmap.yaml
+                  key: count
+            - name: TEXT_ARG
+              valueFrom:
+                ConfigMapKeyRef:
+                  name: demo-cm # <--- configMap name from above configmap.yaml
+                  key: properties
+          volumeMounts:
+          - name: config
+            mountPath: "/config"
+            readOnly: true
+        volumes:
+          # You set volumes at the Pod level, then mount them into container
+          - name: config # This dir will appear in the Pod below, after apply
+            configMap:
+              # Provide the name of the ConfigMap you want to mount.
+              name: demo-cm
+              # An array of keys from the ConfigMap to create as files
+              items: # if we comment below list, in '/config' will appear files 
+                     #  with data, provided under configmap.yaml file's 'data:" section
+                     #  i.e., the following lines averrides configmap.yaml file's 'data:" section
+              - key: "properties"   # if commented all these lines ..
+                path: "properties"  # if commented all these lines ..
+              - key: "config.ini"   # if commented all these lines ..
+                path: "config.ini"  # if commented all these lines ..
+
+
+    Start the Deployment:
+      > k apply -f deployment.yaml
+    
+    In Lens do port-forward / Open with browser and see the results.
+        At the end remove port-forward.
+        
+    Get into the Pod:
+      Result: a folder 'config' is created there:
+        /config
+           - config.ini
+                # Hello from TBS
+                # Demo configuration
+                # An example.
+           - properties
+                # This is demo config
+      
+    Delete the deployment:
+      > k delete -f deployment.yaml
+
+
+# ===================================================
+# Location of ConfigMaps in the #Kubernetes Node
+
+    Start the above Deployment with uncommented 'items:' section:
+      > k apply -f deployment.yaml
+
+    For location:
+      SSH to 'minikube'
+       sudo su
+        cd /var/lib/kubelet/pods/
+         <list of pods directories named as their UID>
+         cd ./UID/
+          ls -la
+              ...
+              volumes
+                kubernetes.io~projected # default dir.
+                kubernetes.io~configmap
+                   config.ini
+                      # Hello from TBS
+                      # Demo configuration
+                      # An example.
+                   properties
+                      # This is demo config
+                      
+    Location is: /var/lib/kubelet/pods/<UID>/volumes/kubernetes.io~configmap/config.ini (or properties)
+
+
+# ===================================================
+# Using ENV vars FROM ConfigMap
+
+Note:   This is used when there are a lot of ENV VARs,
+        So we just pass the whole "demo-cm" ConfigMap to the Pod
+
+  # configmap.yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: demo-cm # <--- ConfigMap name used in deployment.yaml above
+    data:
+      # property-like keys; each key maps to a single value
+      interval: "5"
+      count: "3"
+      # file-like keys
+      properties:
+        Hello from TBS
+        Demo configuration
+        An example.
+      config.ini: "This is demo config"
+
+
+  # deployment.yaml
+    apiVersion: app/v1
+    kind: Deployment
+    metadata:
+      name: kuber-1
+      labels:
+        app: kuber-1
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: http-server-1
+      template:
+        metadata:
+          labels:
+            app: http-server-1
+        spec:
+          containers:
+          - name:  kuber-app
+            image: location/kuber:v1.0
+        # Note: When using "- prefix:" below,
+        # the following "args:" must be commented
+            args: ["$(INTERVAL)","$(COUNT)","$(TEXT_ARG)",]
+            ports:
+            - containerPort: 8000
+            envFrom:
+        # In order to add "MY_PREFIX_" to all passed ENV VARs,
+        # uncomment it below and COMMENT "args:" above
+            - # prefix: MY_PREFIX_
+              ConfigMapKeyRef:
+                name: demo-cm # <--- configMap name from below configmap.yaml
+
+
+    Start the ConfigMap:  > k apply -f configmap.yaml
+    Start the Deployment: > k apply -f deployment.yaml
+
+    Check: the ANV VARs are passed to the Pod (with or without prefix)
+    
+    Stop:
+        > k delete -f configmap.yaml
+        > k delete -f deployment.yaml
+    
+    
+# ===================================================
+# Using ConfigMap as a configuration file in Volume
+
+Note: Mounting files into our Pods.
+Note: Example with Nginx.
+
+  # configmap.yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: nginx-conf-file # <-- this name will be used below in deployment's "volumes:"
+      labels:
+        app: nginx
+    data:
+      nginx.conf: # Our nginx config file
+        # --------------------------------------------------------------
+        server {                                           # our config file content
+            listen 80:                                     # our config file content
+            access_log /var/log/nginx/reverse-access.log;  # our config file content
+            error_log  /var/log/nginx/reverse-error.log;   # our config file content
+            location / {                                   # our config file content
+                  proxy_pass http://example.com;           # our config file content
+            }                                              # our config file content
+          }                                                # our config file content
+        # --------------------------------------------------------------
+    
+  # deployment.yaml
+    apiVersion: app/v1
+    kind: Deployment
+    metadata:
+      name: nginx-proxy
+      labels:
+        app: nginx
+    spec:
+      selector:
+        matchLabels:
+          app: nginx
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            app: nginx
+        spec:
+          containers:
+            - name:  nginx
+              image: nginx
+              ports:
+              - containerPort: 80
+          # *************************
+          # Here is the topic's part:
+              volumeMounts:
+                - name: nginx-conf
+                  mountPath: /etc/nginx/conf.d/ # this will override default "/etc/nginx/conf.d/default.conf" dir.
+            # In order to keep the default.conf and just add our nginx.conf, we should uncomment the below line:
+                  # subPath: nginx.conf
+                  readOnly: true
+          volumes:
+            - name: nginx-conf
+              configMap:
+                name: nginx-conf-file # <-- used the name from configMap above.
+
+
+    Start the ConfigMap:  > k apply -f configmap.yaml
+    Start the Deployment: > k apply -f deployment.yaml
+
+    Check: the ANV VARs are passed to the Pod (with or without prefix)
+    
+    Stop:
+        > k delete -f configmap.yaml
+        > k delete -f deployment.yaml
+
+
+
+# ===================================================
+# Changing ConfigMap after Pod creation
+Note: If we change some ENV VAR's / subPath in configmap.yaml value and apply the configMap,
+      we should also restart the deployment in order to reflect that change in the container.
+
+
+# ===================================================
+# Container that uses ConfigMap as a #subPath volume mounting, will not get ConfigMap updates
+Note: If we change subPath in configmap.yaml value and apply the configMap,
+      in the container we should make the APP (nginx in this EX.) to re-read the config.
+            Re-read nginx.conf: > ngnix -s reaload
+
+
+# ===================================================
+# Creating ConfigMap by using kubectl
+
+  # Our nginx config file
+    nginx.conf
+    #  server {                                         
+    #      listen 80:                                   
+    #      access_log /var/log/nginx/reverse-access.log;
+    #      error_log  /var/log/nginx/reverse-error.log; 
+    #      location / {                                 
+    #            proxy_pass http://example.com;         
+    #      }                                            
+    #    }
+
+
+Create ConfigMap just from file:
+    > kubectl create configmap <nginx-config> --from-file=nginx.conf
+
+Create ConfigMap specifying vars-values:
+    > kubectl create configmap <config> --from-literal=<VAR-1>=<VAL-1> [ --from-literal=<VAR-N>=<VAL-N>=nginx.conf ...] [--from-literal=config.ini="Some data"]
+
+Create ConfigMap from folder:
+    Attention to keyword: "--from-file"
+    # <folder_path>
+    #      file1
+    #           content1
+    #           [...]
+    #      file2
+    #           content2
+    #           [...]
+    #       ...
+    #      fileN
+    #           contenN
+    #           [...]
+        
+    > kubectl create configmap <my-config> --from-file=<folder_path>/
+        # This will create vars with names as in folder's files' names, assigning them values, contained in that files
+        # i.e.: file1=content1, file2=content2, ..., fileN=contentN
+
+Create ConfigMap from env-file.props:
+    Attention to keyword: "--from-env-file"
+    # Env-file
+        # Vars-files contain a list of environment variables,
+        # These syntax rules apply:
+        #   Each line in the env file has to be in VAR=VAL format.
+        #   Lines beginning with # (i.e. comments) are ignored.
+        #   Blank lines are ignored.
+        #   There is no special handling of quotation marks (i.e.they will be 
+        env_1="value_1"
+        env_2=value_2
+        env_3=value_3
+        env_4="value_4"
+        env_5=value_5
+        env_6=value_6
+        env_7="value_7"
+    
+    > kubectl create configmap <config-env-file> --from-env-file=env-file.props 
+
+Note: Don't mix keywords "--from-file" and "--from-env-file"
+
+Results check: in Lens -> Configuration -> ConfigMaps -> "<nginx-config>"
+
+
+
+
+
+
+
+
+

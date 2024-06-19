@@ -1,0 +1,45 @@
+# ============ Kubernetes ============ 17June2024
+Content:
+    - Kubernetes Control Plane
+    - Etcd
+    - Kube Scheduler
+    - ConfigMaps
+
+
+Kubernetes Control Plane:
+    Kubernetes Control Plane, often called the “Master” or “Control Node,” is a set of components that collectively manage the state of a Kubernetes cluster.
+    It acts as the brain of the cluster, making worldwide decisions about the cluster (for example, scheduling), as well as detecting and responding to cluster events (like starting a new pod while a deployment’s replicas field is unsatisfied).
+    Components of the Kubernetes Control Plane.
+    There are mainly four main Control Plane components listed as follows:
+        - Kube-API Server
+        - Kube-Scheduler
+        - Controller Manager
+        - Etcd Database
+
+Etcd:
+    Etcd is a highly available key-value store for service discovery and shared configuration.
+    The goal is to securely store important data within a distributed system via the Raft consensus system. 
+
+
+Kube Scheduler:
+    Kube Scheduler is in charge of assigning newly created pods to cluster nodes.
+    It provides an efficient and equitable workload distribution through comparing the resource requirements of pods to the resources on nodes.
+    To make these decisions, the scheduler considers an array of established policies and priorities, including node affinity, taints, and tolerance.
+    It helps ensure maintaining the ideal cluster performance and resource usage by dynamically allocating pods.
+    Administrators may modify scheduling behavior to suit specific application constraints with the aid of the Kube Scheduler’s integration with custom scheduling policies.
+    - Assigns pods to nodes based on resource availability and constraints.
+    - Regularly checks the resource utilization of every node and schedules pods to hold the desired state.
+    - Enhances cluster efficiency by using distributing workloads intelligently.
+    These components works collectively to maintain the desired state of the Kubernetes cluster, handle of events, and to make sure that programs are running as exactly like it was configured in user’s deployment configurations.
+
+ConfigMaps:
+    Configmap is an API object that is mainly used to store non-confidential data. 
+    The data that is stored in ConfigMap is stored as key-value pairs.
+    ConfigMaps are configuration files that may be used by pods as command-line arguments, environment variables, or even as configuration files on a disc.
+    This feature allows us to decouple environment-specific configuration from our container images, after this is done, our applications are easily portable.
+    The thing to be noted here is that ConfigMap does not provide any sort of secrecy or encryption, so it is advised to store non-confidential data only We can use secrets to store confidential data.
+    ConfigMap has data and binary data fields. Key value pairs are accepted by these fields as values.
+    The data field is used to store UTF-8 strings, while the binary data field is used to store binary data as base64-encoded strings.
+    A valid DNS subdomain name should be given to ConfigMap.
+    The key value that is recorded in the data field and the key value in the binaryData field cannot both be the same.
+

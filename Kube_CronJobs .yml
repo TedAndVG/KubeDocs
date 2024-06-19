@@ -1,0 +1,249 @@
+# ============ CronJobs ============ 19June2024
+
+Content:
+    - CronJob object starting
+    - Suspend: true  / false
+    - Start and parsing of CronJob object concurrencyPolicy: Allow
+    - Start and parsing of CronJob object concurrencyPolicy: Forbid
+    - Start and parsing of CronJob object concurrencyPolicy: Replace
+    - Parameters: successfulJobsHistoryLimit and failedJobsHistoryLimit
+    - Parameter in detail: startingDeadlineSeconds
+    - Parameter in detail: suspend
+    - Possible error in CronJob, if Downtime happens
+
+Caution:    All CronJob schedule times are based on the timezone of the kube-controller-namager.
+
+Note:   CronJob is for starting Jobs from the template according to a specified schedule (it's own crontab)
+
+Note:   CronJob is a self-sufficient object and thus has a parameters
+
+Note:   Job exit status   0 is OK
+        Job exit status !=0 is ERROR
+
+# ===================================================================================
+# CronJob object starting
+
+    # cronjob.yaml
+    apiVersion: batch/v1beta
+    kind: CronJob
+    metadata: 
+      name: hello
+    spec:
+      # ------ Here: --------
+      schedule: "*/1 * * * *" # every 1 minute
+      jobTemplate:
+        spec:
+          backoffLimit: 4
+          activeDeadlineSeconds: 240
+          parallelism: 2
+          completions: 3
+      # ---------------------
+          template:
+            spec:
+              containers:
+              - name:  hello
+                image: busybox
+                imagePullPolicy: IfNotPresent # <----
+                command:
+                - /bin/sh
+                - c
+                - date; echo Hello
+              restartPolicy: OnFailure
+
+    Start Job:  > kubectl apply -f cronjob.yaml
+    Delete Jobs:    > kubectl delete cronjobs.batch hello
+
+Note:   See Kube_Jobs.yaml
+
+
+# ===================================================================================
+# Suspend: true  / false
+Effect: Suspend 
+        Suspend: true # means we suspended CronJob will not produce new 
+                      #                         Jobs and Jobs will not produce new 
+                      #                             Pods 
+                      # So we can suspend CronJob functioning
+                      
+        Suspend: false # We reactivate CronJob functions again
+
+Note: We can do the same thingi via Lens
+
+
+
+# ===================================================================================
+# Start and parsing of CronJob object concurrencyPolicy: Allow
+# 
+Note: concurrencyPolicy is a policy that allows or not to start several Jobs sequentially
+
+Note: By default 'concurrencyPolicy = Allow'
+
+Effect: The next time the specified Job will start according to its schedule,
+        regardless of the previous Job's state.
+
+    # cronjob-allow.yaml
+    apiVersion: batch/v1beta
+    kind: CronJob
+    metadata: 
+      name: hello-allow
+    spec:
+      schedule: "*/1 * * * *"
+      # ---- here: -----------
+      concurrencyPolicy: Allow
+      # ----------------------
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+              - name:  hello
+                image: busybox
+                args:
+                - /bin/sh
+                - c
+                - date; echo Hello; sleep 145 # <---- the job will last more than a minute, thus will overlay with ne next scheduled, because Allow.
+              restartPolicy: OnFailure
+
+    Start Job:  > kubectl apply -f cronjob-allow.yaml
+    Delete Jobs:    > kubectl delete cronjobs.batch hello-allow
+
+
+
+# ====================================================================================
+# Start and parsing of CronJob object concurrencyPolicy: Forbid
+# 
+Note: 'concurrencyPolicy = Forbid' is a policy that doesn't allow starting 
+        the next scheduled Jobs if the current is not completed
+
+    # cronjob-forbid.yaml
+    apiVersion: batch/v1beta
+    kind: CronJob
+    metadata: 
+      name: hello-forbid
+    spec:
+      schedule: "*/1 * * * *"
+      # ---- here: -----------
+      concurrencyPolicy: Forbid
+      # ----------------------
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+              - name:  hello
+                image: busybox
+                args:
+                - /bin/sh
+                - c
+                - date; echo Hello; sleep 145 # <---- the job will last more than a minute, thus the next scheduled will not start in a minute, because Forbid.
+              restartPolicy: OnFailure
+
+    Start Job:  > kubectl apply -f cronjob-forbid.yaml
+    Delete Jobs:    > kubectl delete cronjobs.batch hello-forbid
+
+
+
+# ====================================================================================
+# Start and parsing of CronJob object concurrencyPolicy: Replace
+# 
+Note: 'concurrencyPolicy = Replace' is a policy that starts according to schedule and replaces
+        the previous scheduled Job, regardless of its status
+
+    # cronjob-replace.yaml
+    apiVersion: batch/v1beta
+    kind: CronJob
+    metadata: 
+      name: hello-replace
+    spec:
+      schedule: "*/1 * * * *"
+      # ---- here: -----------
+      concurrencyPolicy: Replace
+      # ----------------------
+      jobTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+              - name:  hello
+                image: busybox
+                args:
+                - /bin/sh
+                - c
+                - date; echo Hello; sleep 145 # <---- the job will last more than a minute, so the next scheduled will start, stopping this one, because Replace.
+              restartPolicy: OnFailure
+
+    Start Job:  > kubectl apply -f cronjob-replace.yaml
+    Delete Jobs:    > kubectl delete cronjobs.batch hello-replace
+
+
+
+# ====================================================================================
+# Parameters: successfulJobsHistoryLimit and failedJobsHistoryLimit
+Effect:
+    - successfulJobsHistoryLimit: N # Keep in history N last successfull Jobs
+    - failedJobsHistoryLimit: M     # Keep in history M last failed Jobs
+
+    # cronjob-suspend.yaml
+    apiVersion: batch/v1beta
+    kind: CronJob
+    metadata: 
+      name: hello-suspend
+    spec:
+      schedule: "*/1 * * * *"
+      concurrencyPolicy: Allow
+      # ---- here: ----------------
+      successfulJobsHistoryLimit: 2 # Keep in history 2 last successfull Jobs
+      failedJobsHistoryLimit: 2 # Keep in history 2 last failed Jobs
+      suspend: false # by default is 'false' - CronJob allowed to functioning
+      # ---------------------------
+      jobTemplate:
+        spec:
+          backoffLimit: 0
+          template:
+            spec:
+              containers:
+              - name:  hello
+                image: busybox
+                args:
+                - /bin/sh
+                - c
+                - date; echo Hello; exit $((RANDOM%2)) # <---- the job will last more than a minute, so the next scheduled will start, stopping this one, because Replace.
+              restartPolicy: OnFailure
+
+    Start Job:  > kubectl apply -f cronjob-replace.yaml
+    Delete Jobs:    > kubectl delete cronjobs.batch hello-replace
+
+
+
+# ====================================================================================
+# Parameter in detail: startingDeadlineSeconds
+Effect: 'startingDeadlineSeconds' - is a param that defines the deadline in seconds for the Job start, 
+        in case, when the Job missed its scheduled starting time due to any reason
+        If it didn't start at the scheduled time, cron will try to start it during the next period of time within the 'startingDeadlineSeconds'
+         And if unsuccessful, it will stop trying afted 'startingDeadlineSeconds' seconds.
+
+
+
+# ====================================================================================
+# Parameter in detail: suspend
+Effect: Suspend 
+        Suspend: true # means we suspended CronJob will not produce new 
+                      #                         Jobs and Jobs will not produce new 
+                      #                             Pods 
+                      # So we can suspend CronJob functioning
+                      
+        Suspend: false # We reactivate CronJob functions again
+
+Note: We can do the same thingi via Lens
+
+
+
+# ====================================================================================
+# Possible error in CronJob, if Downtime happens
+
+Note:   If (during some downtime) during 'startingDeadlineSeconds' period of time the number of missed scheduled Jobs becomes more than 100,
+        the cronjob-manager will rise an ERROR "Cannot determine if job needs to be started. (etc...)"
+
+
+
+
+

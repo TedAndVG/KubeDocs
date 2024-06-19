@@ -1,0 +1,260 @@
+# ============ Jobs ============ 18June2024
+
+Content:
+    - Use cases for Jobs
+    - Starting Job object
+    - Starting and observing Job object with restartPolicy: OnFailure
+    - Starting and observing Job object with restartPolicy: Never
+    - Consistent start of several Jobs in a row 
+    - Starting Jobs in parallel
+    - Parallel and consistent start of Jobs at the same time
+    - Using of activeDeadlineSeconds in Job
+    - Using of TimeToLive ( ttlSecondsAfterFinished ) in Job
+
+
+Note:   Job exit status   0 is OK
+        Job exit status !=0 is ERROR
+# ===========================
+# Starting Job object
+
+    # job.yaml
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: pi
+    spec:
+      template:
+        spec:
+          containers:
+          - name:  pi
+            image: perl
+            command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+          restartPolicy: Never
+
+    Start Job:  > kubectl apply -f job.yaml
+
+Note:   This job will start, print the value of PI and finish (tate will be "Complete").
+
+
+
+# ===========================
+# Starting and observing Job object with restartPolicy: OnFailure
+Note: Restart policy 'OnFailure' means that the job (pod) will be deleted after the specified number of failures
+
+Note: 'OnFailure' is controlled by Kubelet, it sees the poor condition of job and tries to restart it.
+
+    # job-onfailure.yaml
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: job-with-restart-policy-onfailure
+    spec:
+      # ----- backoffLimit ------
+      # Used for number of failed restarts before the job will be cancelled
+      # If not specified, the default number is 6
+      backoffLimit: 3
+      # -------------------------
+      template:
+        spec:
+          containers:
+          - name:  job-with-failure
+            image: busibox
+            command: ["/bin/sh", "-c"]
+            # **** puting an ERROR (exit 1) *****
+            args: ["echo 'Running Job'; sleep 5; exit 1"]
+          restartPolicy: OnFailure # <----
+
+    Start Job:  > kubectl apply -f job-onfailure.yaml
+
+
+
+# ===========================
+# Starting and observing Job object with restartPolicy: Never
+Note:   Restart policy 'OnFailure' means that the job will be deleted after the specified number of failures
+
+Note:   'Never' is controlled by Job Controller, that performs pod's restart itself.
+        That's why the number of the created Jobs will be 'backoffLimit + 1'
+        And after failures the failed pods will stay visible, so can be further investigated
+
+    # job-never.yaml
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: job-with-restart-policy-never
+    spec:
+      # ----- actuially will be 4: ------
+      backoffLimit: 3 # Means that after 3 failures it will try to start the final 4th
+      # ---------------------------------
+      template:
+        spec:
+          containers:
+          - name:  job-with-failure
+            image: busibox
+            command: ["/bin/sh", "-c"]
+            # **** puting an ERROR (exit 1) *****
+            args: ["echo 'Running Job'; sleep 5; exit 1"]
+          restartPolicy: Never # <----
+
+    Start Job:  > kubectl apply -f job-never.yaml
+    
+    Delete Jobs:
+        > kubectl delete jobs.batch job-with-restart-policy-onfailure
+        > kubectl delete jobs.batch job-with-restart-policy-never
+
+Note: When deleting a Job, all pods controlled by that Job will be deleted as well.
+
+
+
+# ==========================
+# Consistent start of several Jobs in a row
+
+    # job-completions.yaml
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: pi-completions
+    spec:
+      # --- 3 pods will start each after another ---
+      #       every next pod will start after the previous is finished
+      completions: 3
+      # --------------------------------------------
+      backoffLimit: 4
+      template:
+        spec:
+          containers:
+          - name:  pi
+            image: perl
+            command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+          restartPolicy: Never
+
+    Delete Jobs:    > kubectl delete jobs.batch pi-completions
+
+
+
+# ==========================
+# Starting Jobs in parallel
+Note: On parallel mode manage the pods not to bother each other
+
+    # job-parallelism.yaml
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: pi-parallelism
+    spec:
+      # --- 2 pods will start in parallel ---
+      paralellism: 2
+      # --------------------------------------------
+      backoffLimit: 4
+      template:
+        spec:
+          containers:
+          - name:  pi
+            image: perl
+            command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+          # When used 'OnFailure' the successfully completed parallel pods will NOT be deleted
+          #  but failed will be deleted
+          restartPolicy: Never
+
+    Delete Jobs:    > kubectl delete jobs.batch pi-parallelism
+    
+    
+
+# ==========================
+# Parallel and consistent start of Jobs at the same time
+Note: Again, on parallel mode manage the pods not to bother each other
+
+    # job-parallelism-completions.yaml
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: pi-parallelism-completions
+    spec:
+      # --- First: 3 pods will start in parallel ---
+      #     Then: after completion 3 more pods will start
+      #     Finally: after their completion the remaining 1 pod will start (Totally: 7)
+      paralellism: 3
+      completions: 7
+      # --------------------------------------------
+      backoffLimit: 4
+      template:
+        spec:
+          containers:
+          - name:  pi
+            image: perl
+            command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+          # When used 'OnFailure' the successfully completed parallel pods will NOT be deleted
+          #  but failed will be deleted
+          restartPolicy: Never
+
+    Delete Jobs:    > kubectl delete jobs.batch pi-parallelism-completions
+
+
+
+# ==========================
+# Using of activeDeadlineSeconds in Job
+Means:  How much time the Job should exist
+
+    # job-with-timeout.yaml
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: job-with-failure
+    spec:
+      # 'activeDeadlineSeconds' has priority over 'backuofLimit'
+      backoffLimit: 4
+      # --- Setting total timeout for the Job completion (not for the Pod!) ---
+      # After this timeout the Job will be deleted, regardless on the state/condition of the Job
+      activeDeadlineSeconds: 50
+      # --------------------------------------------
+      template:
+        spec:
+          containers:
+          - name:  job-with-failure 
+            image: busybox
+            command: ["/bin/sh", "-c"]
+            # **** puting an ERROR (exit 1) *****
+            args: ["echo 'Running Job'; sleep 5; exit 1"]
+          restartPolicy: Never
+
+Note:   'activeDeadlineSeconds' has priority over 'backuofLimit'
+
+Note:   Completed Jobs should be removed manually.
+
+    Delete Jobs:    > kubectl delete jobs.batch job-with-failure
+    
+    
+    
+# ==========================
+# Using of ttlSecondsAfterFinished in Job
+
+Means: ttl = Time-To-Live
+
+For what: Allows automatic removal of the Job (with its Pods) after specified period of time,
+           regardless of its state (completed, failed, etc)
+
+    # job-with-ttl.yaml
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: job-with-ttl
+    spec:
+      # ----- Time-To-Live ------
+      ttlSecondsAfterFinished: 30
+      # --------------------------------------------
+      template:
+        spec:
+          containers:
+          - name:  pi
+            image: perl
+            command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+          restartPolicy: Never
+
+
+
+
+
+
+
+
+
+

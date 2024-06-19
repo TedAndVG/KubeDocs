@@ -1,0 +1,89 @@
+# ============ DaemonSet ============ 18June2024
+
+Content:
+    - DaemonSet example
+    - Run certain pods on specified nodes - Assign particular Pods to particular Nodes
+    
+
+DaemonSet: is a Kube object that allows to start a single Pod of the same type on each node (ex.: log collector, system level pod)
+
+Node:   In DaemonSet we don't mention replicas count.
+
+Find in Lens: Lens -> Workloads -> DaemonSets
+Note:   in AWS on each node there are initialy present the following 2 daemonsets: 
+            - aws-node
+            - kube-proxy
+
+# ==============================
+# DaemonSet example
+
+    # daemonset.yaml
+    apiVersion: app/v1
+    kind: DaemonSet
+    metadata:
+      name: kuber-daemonset
+      labels:
+        app: kuber-daemonset
+    spec:
+      selector:
+        matchLabels:
+          app: http-daemon
+      template:
+        metadata:
+          labels:
+            app: kuber-daemon
+        spec:
+          containers:
+          - name:  kuber-app
+            image: location/kuber
+            ports:
+            - containerPort: 8000
+
+
+    Start the DaemonSet:
+      > k apply -f daemonset.yaml
+    
+    Check:
+      > k pod -o=custom-columns=NAME:.metadata.name,STATUS:.status.phase,NODE:.spec.nodeName (field names from pod's yaml)
+          Result: NAME      STATUS      NODE
+                   ...      ...         ...
+
+
+# =============================
+# Run certain pods on specified nodes - Assign particular Pods to particular Nodes
+
+Note: May be assigned by adding "nodeSelector:"
+
+    # Ex.: Run a single Pod of the same type on the Node in specified Zone ("eu-west-1c")
+    
+    # daemonset.yaml
+    apiVersion: app/v1
+    kind: DaemonSet
+    metadata:
+      name: kuber-daemonset
+      labels:
+        app: kuber-daemonset
+    spec:
+      selector:
+        matchLabels:
+          app: http-daemon
+      template:
+        metadata:
+          labels:
+            app: kuber-daemon
+        spec:
+          # -------- here is the zone assignment --------
+          nodeSelector:
+            topology.kubernetes.io/zone: "eu-west-1c"
+          # ---------------------------------------------
+          containers:
+          - name:  kuber-app
+            image: location/kuber
+            ports:
+            - containerPort: 8000
+
+    Start the DaemonSet:    > kubectl apply -f daemonset.yaml
+    Get zones:              > kubectl get node -L topology.kubernetes.io/zone
+    Watch:                  > kubectl get pod --watch
+    
+
