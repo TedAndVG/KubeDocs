@@ -73,7 +73,7 @@ emptyDir: For type 'emptyDir' in the NODE where the container(s) will run,
           Kube allocates a disk space as a volume, in order to directly use it 
           (volume will be mounted to 'mountPath' section in containers)
 
-Note: 'emptyyDir' lives as long as the Pod that uses it.
+Note: 'emptyDir' lives as long as the Pod that uses it.
 
 
 

@@ -8,7 +8,8 @@ Content:
 
 Kubernetes Control Plane:
     Kubernetes Control Plane, often called the “Master” or “Control Node,” is a set of components that collectively manage the state of a Kubernetes cluster.
-    It acts as the brain of the cluster, making worldwide decisions about the cluster (for example, scheduling), as well as detecting and responding to cluster events (like starting a new pod while a deployment’s replicas field is unsatisfied).
+    It acts as the brain of the cluster, making worldwide decisions about the cluster (for example, scheduling), 
+     as well as detecting and responding to cluster events (like starting a new pod while a deployment’s replicas field is unsatisfied).
     Components of the Kubernetes Control Plane.
     There are mainly four main Control Plane components listed as follows:
         - Kube-API Server

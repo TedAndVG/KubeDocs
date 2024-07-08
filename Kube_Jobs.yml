@@ -33,7 +33,7 @@ Note:   Job exit status   0 is OK
 
     Start Job:  > kubectl apply -f job.yaml
 
-Note:   This job will start, print the value of PI and finish (tate will be "Complete").
+Note:   This job will start, print the value of PI and finish (state will be "Complete").
 
 
 

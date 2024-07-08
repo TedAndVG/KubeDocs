@@ -1,5 +1,7 @@
 # ============ DaemonSet ============ 18June2024
 
+See also:   Affinity, Taints, Tolerations
+
 Content:
     - DaemonSet example
     - Run certain pods on specified nodes - Assign particular Pods to particular Nodes

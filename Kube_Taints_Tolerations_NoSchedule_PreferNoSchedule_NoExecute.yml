@@ -1,0 +1,188 @@
+# ============ Taints and Tolerations in Kubernetes. NoSchedule, PreferNoSchedule and NoExecute =============
+
+Content:
+    - Terraform code
+    - Effect: NoSchedule
+    - Effect: PreferNoSchedule
+    - Effect: NoExecute
+    - tolerationSeconds parameter for NoExecute
+    - 'Unreachable worker node' imitation
+    - operator Exists
+    - node.kubernetes.io/unreachable
+
+Note:   Tolerated Pods will work on Tainted Nodes
+
+Note:   For tolerations to work Node should contain Taints
+
+Note:   For Nodes we specify Taints, and for Pods we specify Tolerations.
+
+Note:   If 'NoSchedule' effect added after that non-tolerated Pods are started, that running non-tolerated Pods will NOT be affected.
+
+Note:   If 'NoExecute' effect added after that non-tolerated Pods are started, that running non-tolerated Pods WILL BE moved to other Nodes or terminated.
+
+Note:   Use 'NoExecute' with 'NoSchedule', otherwise infinite loop of Pod's 'termination/start/live-for_tolerationSeconds' situation is possible
+
+# Terraform code =====================================
+Add Taint manually to Node:
+    kubectl taint nodes <node_name> <key_name>=<key_value>:<effect_value>
+
+Remove from a node the taint with key 'key_name' and effect 'PreferNoSchedule' if one exists:
+    kubectl taint nodes <node_name> <key_name>=<key_value>:<effect_value>-
+
+
+# Example-1: NoSchedule =====================================
+
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: with-no-schedule-taint
+      labels:
+        app: kuber
+    spec:
+      replicas: 2
+      selector:
+        matchLabels:
+          app: http-server
+      template:
+        metadata:
+          labels:
+            app: http-server
+        spec:
+          containers:
+            - name: kuber-app
+              image: bakavets/kuber
+              ports:
+                - containerPort: 8000
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: node.k8s/role
+                        operator: In
+                        values:
+                          - app-worker
+          tolerations: # <-------------- Toleration to Node that contain Taint with key 'node.k8s/app-role' Equal to value 'worker'
+            - key: node.k8s/app-role
+              operator: Equal # Exists
+              value: worker
+              effect: NoSchedule
+
+Note:   With 'NoSchedule' the schedule will not place any other Pods (with no tolerations)
+        on the Tainted Nodes.
+
+
+# Example-2: PreferNoSchedule =====================================
+Note: 'PreferNoSchedule' is the soft version of 'NoSchedule' toleration.
+        It first will try to schedule Pods on other Nodes (with no taints),
+        and if there are not sufficient resources, then the scheduler finally will place
+        remaining Pods on the Tainted Nodes.
+    
+    
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: with-prefer-no-schedule-taint
+      labels:
+        app: kuber
+    spec:
+      replicas: 4
+      selector:
+        matchLabels:
+          app: http-server
+      template:
+        metadata:
+          labels:
+            app: http-server
+        spec:
+          containers:
+            - name: kuber-app
+              image: bakavets/kuber
+              ports:
+                - containerPort: 8000
+              resources:
+                limits:
+                  cpu: 1
+                  memory: 2Gi
+                requests:
+                  cpu: 1
+                  memory: 512Mi
+          tolerations:
+            - key: node.k8s/app-role
+              operator: Exists # <---------------- if the key 'node.k8s/app-role' exists
+              effect: PreferNoSchedule
+
+
+# Example-3: NoExecute =====================================
+Add Taint manually to TheNode:
+    kubectl taint nodes TheNode gpu=true:NoExecute
+
+
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: with-no-execute-taint
+      labels:
+        app: kuber
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: http-server
+      template:
+        metadata:
+          labels:
+            app: http-server
+        spec:
+          containers:
+            - name: kuber-app
+              image: bakavets/kuber
+              ports:
+                - containerPort: 8000
+              resources:            # resources
+                limits:             # resources
+                  cpu: 1            # resources
+                  memory: 2Gi       # resources
+                requests:           # resources
+                  cpu: 1            # resources
+                  memory: 512Mi     # resources
+          tolerations:
+            - key: "gpu"
+              operator: "Equal"
+              value: "true"
+              effect: "NoExecute"
+              # tolerationSeconds: 180 # <--- how much time a non-tolerated Pods will still run on the Node
+                    # The default value of 'tolerationSeconds' is 300 seconds
+
+
+Note:   On application of the yaml above, the scheduler on the Node will move all running Pods that are not Tolerant to the Node, 
+        to anothe Node that has enough resources. If there are no resources left for any Pod, it will just be terminated.
+
+Note:   Use 'NoExecute' with 'NoSchedule', otherwise infinite loop of Pod's 'termination/start/live-for_tolerationSeconds' situation is possible
+
+
+
+# tolerationSeconds parameter for NoExecute =====================================
+Note: 'tolerationSeconds: 180' means how much time a non-tolerated Pods will still run on the Node
+        The default value of 'tolerationSeconds' is 300 seconds
+
+
+# 'Unreachable worker node' imitation =====================================
+
+
+
+# operator Exists =====================================
+        ....
+          tolerations:
+            - key: node.k8s/app-role
+              operator: Exists # <---------------- if the key 'node.k8s/app-role' exists, no value needed
+              effect: PreferNoSchedule
+
+Note:   Some special pods are running on every node despite of that nodes have taints set.
+        That's because they are tolerated in the following way:
+        
+        ......
+
+# node.kubernetes.io/unreachable =====================================
+
+

@@ -26,8 +26,8 @@ Content:
           volumeMounts:
           - name: shared-data
             mountPath: /usr/share/nginx/html
-            readOnly: true # <--- Container can oly read from the volume
-        # The lowing container can WRITE to the same mounted volume:
+            readOnly: true # <--- Container can only read from the volume
+        # The following container can WRITE to the same mounted volume:
         - name: debian-container
           image: debian
           volumeMounts:
@@ -71,7 +71,7 @@ Note:   'hostPath' - usage not recommended due to some security risks (see below
           type: Directory
               
 Security Risk:  Unlike 'emptyDir', that destroys after Pod termination,
-                'hostPath' type directory with all its data remains afte a Pod destruction
+                'hostPath' type directory with all its data remains after a Pod destruction
                 and next time another Pod is created, the remained data are accessable for the new Pod.
 
 Advise:     Consider using 'readOnly: true'
@@ -109,7 +109,7 @@ Advise:     Consider using 'readOnly: true'
 
 Note:   AWS-EBS-volume and the Node that uses it must be in the same availability zone.
  
-Note:   AWS-EBS-volume can be attached only to ONE Node.
+Note:   AWS-EBS-volume can be attached only to ONE NODE.
 
 (See below)
 

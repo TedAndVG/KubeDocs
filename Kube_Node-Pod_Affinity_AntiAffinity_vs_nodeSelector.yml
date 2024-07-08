@@ -1,0 +1,322 @@
+# ============ Node affinity and anti-affinity vs nodeSelector, podAffinity and podAntiAffinity =============
+
+See also:
+    - DaemonSets
+    - nodeSelector field matching against node labels # <-- discussed below
+    - Affinity and anti-affinity # <-- discussed below
+    - nodeName field                    # see: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+    - Pod topology spread constraints   # see: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+    
+Content:
+    - Terraform code
+    - nodeAffinity with nodeSelector
+    - nodeAffinity with "Hard" rule "requiredDuringSchedulingIgnoredDuringExecution"
+    - nodeAntiAffinity behavior
+    - nodeAffinity. "Soft" rule "preferredDuringSchedulingIgnoredDuringExecution"
+    - Weight for preferredDuringSchedulingIgnoredDuringExecution affinity
+    - podAffinity
+    - podAntiAffinity
+
+Note:   NodeAffinity is a extended functional for nodeSelector
+
+Note:   Hard and Soft rules can be used together
+
+
+# Terraform code =========================================
+
+
+
+# nodeAffinity with nodeSelector
+
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: with-node-selector
+      labels:
+        app: kuber
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: http-server
+      template:
+        metadata:
+          labels:
+            app: http-server
+        spec:
+          containers:
+            - name: kuber-app
+              image: location/kuber
+              ports:
+                - containerPort: 8000
+          nodeSelector: # <---------------- Selects nodes with the following labels:
+            topology.kubernetes.io/zone: eu-west-1b # label
+            capacityType: spot                      # label
+        
+
+# nodeAffinity with "Hard" rule "requiredDuringSchedulingIgnoredDuringExecution" =========================================
+
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: with-node-affinity-hard
+      labels:
+        app: kuber
+    spec:
+      replicas: 5
+      selector:
+        matchLabels:
+          app: http-server
+      template:
+        metadata:
+          labels:
+            app: http-server
+        spec:
+            containers:
+              - name: kuber-app
+                image: location/kuber
+                ports:
+                  - containerPort: 8000
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:     # <- Hard rule
+                # preferredDuringSchedulingIgnoredDuringExecution   # <- Soft rule
+                  nodeSelectionTerms:
+                  - matchExpression: # See below topic for behaviour:
+                    - key: topology.kubernetes.io/zone
+                      operator: In
+                      values:
+                      - eu-west-1a
+                      - eu-west-1c
+                  - matchExpressions:
+                    - key: node.kubernetes.io/instance-type
+                      operator: In
+                      values:
+                      - m5.xlarge
+                      - m5n.xlarge
+                  - matchExpressions:
+                    - key: capacityType
+                      operator: In
+                      values:
+                      - spot
+
+
+# Node AntiAffinity behavior =========================================
+
+Note-OR:   Logic between
+            {
+                  - matchExpressions:
+                    - key: <key_name>
+                      operator: <operator>
+                      values:
+                      - x1
+                      - y1
+                  - matchExpressions:
+                    - key: <key_name>
+                      operator: <operator>
+                      values:
+                      - x2
+                      - y2
+                  - matchExpressions:
+                    - key: <key_name>
+                      operator: <operator>
+                      values:
+                      - x3
+                      - y3
+            }
+             is 'OR'.
+
+Note-AND:   Logic between
+            {
+                  - matchExpressions:
+                    - key: <key_name>
+                      operator: <operator>
+                      values:
+                      - x1
+                      - y1
+                    - key: <key_name>
+                      operator: <operator>
+                      values:
+                      - x2
+                      - y2
+                    - key: <key_name>
+                      operator: <operator>
+                      values:
+                      - x3
+                      - y3
+            }
+             is 'AND'.
+
+<Operators> may be:
+    - In
+    - NotIn
+    - Exists
+    - DoesNotExist
+    - Gt
+    - Lt
+
+
+
+# nodeAffinity. "Soft" rule "preferredDuringSchedulingIgnoredDuringExecution" =========================================
+
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: with-node-affinity-soft
+    labels:
+      app: kuber
+  spec:
+    replicas: 5
+    selector:
+      matchLabels:
+        app: http-server
+    template:
+      metadata:
+        labels:
+          app: http-server
+      spec:
+        containers:
+          - name: kuber-app
+            image: location/kuber
+            ports:
+              - containerPort: 8000
+            resources:        # LIMITs are used, see in later topics
+              limits:         # LIMITs are used, see in later topics
+                cpu: '1'      # LIMITs are used, see in later topics
+                memory: 2Gi   # LIMITs are used, see in later topics
+              requests:       # LIMITs are used, see in later topics
+                cpu: '1'      # LIMITs are used, see in later topics
+                memory: 512Mi # LIMITs are used, see in later topics
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution: # <-- Hard rule
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: topology.kubernetes.io/zone
+                  operator: In
+                  values:
+                  - eu-west-1a
+                  - eu-west-1b
+            preferredDuringSchedulingIgnoredDuringExecution: # <-- Soft rule
+            - weight: 1 # <--- Weight, see below section for weights
+              preference:
+                matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values:
+                  - ip-10-23-15-55.eu-west-1.compute.internal
+            - weight: 50 # <--- Weight, see below section for weights
+              preference:
+                matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values:
+                  - ip-10-23-60-237.eu-west-1.compute.internal
+            - weight: 70 # <--- Weight, see below section for weights
+              preference:
+                matchExpressions:
+                - key: kubernetes.io/hostname
+                  operator: In
+                  values:
+                  - ip-10-23-93-136.eu-west-1.compute.internal
+                  
+
+# Weight for preferredDuringSchedulingIgnoredDuringExecution affinity =========================================
+Note:   Weight is like priority, bigger value means bigger priority.
+
+
+# podAffinity  =========================================
+
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: with-pod-affinity
+      labels:
+        app: kuber
+    spec:
+      replicas: 5
+      selector:
+        matchLabels:
+          app: http-server
+      template:
+        metadata:
+          labels:
+            app: http-server
+        spec:
+          containers:
+            - name: kuber-app
+              image: bakavets/kuber
+              ports:
+                - containerPort: 8000
+              resources:         # Resources related to the container: \
+                limits:          #                                      \
+                  cpu: 1500m     # 1.5 mili-cpus                         \
+                  memory: 2Gi    # 2G RAM                                 > <-----------<--------------<--------------<----------<---------#|
+                requests:        #                                       /                                                                 #|
+                  cpu: 1500m     #                                      /                                                                  #|
+                  memory: 512Mi  # ____________________________________/                                                                   #|
+          affinity:                                                                                                                        #|
+            podAffinity: # <<<===== Affinity                                                                                               #|
+              requiredDuringSchedulingIgnoredDuringExecution:  # Version for Hard rule:                                                    #|
+              - labelSelector:                                 #                                                                           #|
+                  matchExpressions:                            #                                                                           #|
+                  - key: app                                   #                                                                           #|
+                    operator: In                               #                                                                           #|
+                    values:                                    # Pods matching labels 'app in http-server'                                 #|
+                    - http-server                              # WILL BE placed on the                                                     #|
+                topologyKey: kubernetes.io/hostname            # Node with the same Hostname, as many, as many fit in that Node's capacity #|
+                # topologyKey: kubernetes.io/zone
+              # preferredDuringSchedulingIgnoredDuringExecution:
+              # - weight: 100                                 # Version for Soft rule:                          / \
+              #   podAffinityTerm:                            #                                                  #
+              #     labelSelector:                            #                                                  #
+              #       matchExpressions:                       #                                                  #
+              #       - key: app                              #                                                  #
+              #         operator: In                          # Pods matching labels 'app in http-server'        #
+              #         values:                               # MAY BE placed on the                             #
+              #         - http-server                         # Node with the same Hostname, if possible -------># (see resources above)
+              #     topologyKey: kubernetes.io/hostname       # 
+
+# podAntiAffinity =========================================
+
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: with-pod-anti-affinity
+      labels:
+        app: kuber
+    spec:
+      replicas: 5
+      selector:
+        matchLabels:
+          app: http-server
+      template:
+        metadata:
+          labels:
+            app: http-server
+        spec:
+          containers:
+            - name: kuber-app
+              image: location/kuber
+              ports:
+                - containerPort: 8000
+          affinity:
+            podAntiAffinity: # <<<===== Anti-Affinity
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - http-server
+                topologyKey: "kubernetes.io/hostname"
+              # preferredDuringSchedulingIgnoredDuringExecution:
+              # - weight: 100
+              #   podAffinityTerm:
+              #     labelSelector:
+              #       matchExpressions:
+              #       - key: app
+              #         operator: In
+              #         values:
+              #         - http-server
+              #     topologyKey: "kubernetes.io/hostname"

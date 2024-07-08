@@ -73,7 +73,7 @@ Deploying (start) them:
     
 Access to each service:
     - curl http://kuber-service-v1
-        (respose from corresponding service)
+        (response from corresponding service)
 
 Now, NEXT, proceed with Ingress:
 # ==============================
