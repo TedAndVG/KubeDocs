@@ -23,48 +23,156 @@ Switching to another Kubernetes package repository:
 
     3. Change the version in the URL to the next available minor release, for ex.:
         deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /
-
     Save the file and exit your text editor.
     Continue following the relevant upgrade instructions.
 
-sudo apt update
-sudo apt-cache madison kubeadm
+    - Add repo of needed version:
+        echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.26/deb/ /' >> /etc/apt/sources.list.d/kubernetes.list
+    - Register keyrig .gpg:
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.26/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    - Refresh repos:
+        sudo apt update
+        sudo apt-cache madison kubeadm
+
+
+# ============= Upgrading Kubernetes k8s ======================
+    Upgrade kubeadm on the Control Plane node
+    Drain the Control Plane node
+    Plan the upgrade (kubeadm upgrade plan)
+    Apply the upgrade (kubeadm upgrade apply)
+    Upgrade kubelet & kubectl on the control Plane node
+    Uncordon the Control Plane node
+# =============================================================
+# ================ Upgrading Control plane ====================
 
 Upgrading control plane nodes:
     The upgrade procedure on control plane nodes should be executed one node at a time.
     Pick a control plane node that you wish to upgrade first. It must have the /etc/kubernetes/admin.conf file.
     Call "kubeadm upgrade": For the first control plane node
-        Upgrade kubeadm:
-        # replace x in 1.30.x-* with the latest patch version
-        sudo apt-mark unhold kubeadm && \
-        sudo apt-get update && sudo apt-get install -y kubeadm='1.26.15-1.1' && \
-        sudo apt-mark hold kubeadm
-                # some GUI, session dropped
-        Verify that the download works and has the expected version:
+        1. Upgrade kubeadm:
+            # replace x in 1.30.x-* with the latest patch version
+            sudo apt-mark unhold kubeadm && \
+            sudo apt-get update && sudo apt-get install -y kubeadm='1.26.15-1.1' && \
+            sudo apt-mark hold kubeadm
+                    # some GUI, session dropped
+        2. Verify that the download works and has the expected version:
+            kubeadm version
     
-        kubeadm version
+        3. Verify the upgrade plan:
+            sudo kubeadm upgrade plan
+        
+        4. Choose a version to upgrade to, and run the appropriate command. For example:
+            # replace x with the patch version you picked for this upgrade
+            sudo kubeadm upgrade apply v1.26.15
+
+
+------------ Flannel --------------
+https://github.com/flannel-io/flannel/issues/1390
+        5. Manually upgrade your CNI provider plugin.
+            Your Container Network Interface (CNI) provider may have its own upgrade instructions to follow. Check the addons page to find your CNI provider and see whether additional upgrade steps are required.
+            This step is not required on additional control plane nodes if the CNI provider runs as a DaemonSet.
+            name: kube-flannel
+            image: docker.io/flannel/flannel:v0.22.0
+        
+            The procedure for the solo node:
+                kubectl delete daemonset kube-flannel-ds --namespace=kube-system
+                kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+                Restart host
+                Hope for the best
     
-        Verify the upgrade plan:
+            The procedure for the clustered:
+                kubectl drain slave-node
+                run steps from "solo node"-procedure but also deleting daemonsets without any pods
+                image
+                kubectl uncordon slave-node
+            And all my deployments, pods, services etc are working.
+--------- not done yet ---------
+
+    For the other control plane nodes:
+        Same as the first control plane node but use:
+            sudo kubeadm upgrade node
+        instead of:
+            sudo kubeadm upgrade apply
+
+        Also calling kubeadm upgrade plan and upgrading the CNI provider plugin is no longer needed.
+
+    Drain the node:
+        Prepare the node for maintenance by marking it unschedulable and evicting the workloads:
+            # replace <node-to-drain> with the name of your node you are draining
+            kubectl drain <node-to-drain> --ignore-daemonsets
+
+    Upgrade kubelet and kubectl:
+        1. Upgrade the kubelet and kubectl: # Ubuntu, Debian, CentOS, RHEL or Fedora
+            # replace x in 1.27.x-* with the latest patch version
+apt-mark unhold kubelet kubectl && \
+apt-get update && apt-get install -y kubelet='1.26.15-1.1' kubectl='1.26.15-1.1' && \
+apt-mark hold kubelet kubectl
+            # node goes offline
+        2. Restart the kubelet:
+            sudo systemctl daemon-reload
+            sudo systemctl restart kubelet
+
+    Uncordon the node:
+        Bring the node back online by marking it schedulable:
+            # replace <node-to-uncordon> with the name of your node
+            kubectl uncordon <node-to-uncordon>
+                # node comes back online
+
+
+
+# =============== Worker Nodes Upgrade ===============
+# ====================================================
+
+Upgrading worker nodes:
+    After the kubelet is upgraded on all nodes verify that all nodes are available again by running the following command from anywhere kubectl can access the cluster
+        kubectl get nodes
+    (Consider topic: Recovering from a failure state)
     
-        sudo kubeadm upgrade plan
+    Upgrade kubeadm: #  Ubuntu, Debian, CentOS, RHEL or Fedora
+        # replace x in 1.27.x-* with the latest patch version
+apt-mark unhold kubeadm && \
+apt-get update && apt-get install -y kubeadm='1.26.15-1.1' && \
+apt-mark hold kubeadm
+
+    Call "kubeadm upgrade":
+        For worker nodes this upgrades the local kubelet configuration:
+            sudo kubeadm upgrade node
+
+    Drain the node: (on control plane)
+        Prepare the node for maintenance by marking it unschedulable and evicting the workloads:
+        # replace <node-to-drain> with the name of your node you are draining
+            kubectl drain <node-to-drain> --ignore-daemonsets
+
+    Upgrade kubelet and kubectl:
+        1. Upgrade kubelet and kubectl: # Ubuntu, Debian, CentOS, RHEL or Fedora
+            # replace x in 1.27.x-* with the latest patch version
+apt-mark unhold kubelet kubectl && \
+apt-get update && apt-get install -y kubelet='1.26.15-1.1' kubectl='1.26.15-1.1' && \
+apt-mark hold kubelet kubectl
+                # node goes offline
+
+        2. Restart the kubelet:
+            sudo systemctl daemon-reload
+            sudo systemctl restart kubelet
+
+    Uncordon the node:
+        Bring the node back online by marking it schedulable:
+        # replace <node-to-uncordon> with the name of your node
+            kubectl uncordon <node-to-uncordon>
+                # node comes back online
 
 
 
 
 
+groupadd ted
+useradd -g ted -m -d /home/ted -s /bin/bash -c ted ted
+passwd ted
 
+vi /etc/sudoers.d/ted
+ted  ALL=(ALL)  NOPASSWD: ALL
 
-
-
-
-
-
-
-
-
-
-
-
+chmod 440 /etc/sudoers.d/ted
 
 
 
