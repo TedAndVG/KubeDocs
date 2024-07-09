@@ -1,0 +1,93 @@
+09Jul24
+# ============== Ubuntu Repositories ==============
+# See: https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/upgrading-linux-nodes/
+
+Configuration of the APT system repositories is stored:
+    /etc/apt/sources.list       file
+    /etc/apt/sources.list.d     directory
+
+Edit the file to enable and disable repositories:
+    comment out the appropriate line, ex.:  # deb cdrom:[DISTRO-APT-CD-NAME - Release i386 (20.......
+
+Extra repos:    In addition to the officially-supported package repositories available for Ubuntu, there are also community-maintained repositories which add thousands more packages for potential installation.
+Two of the most popular repos (enabled by default):
+    - Universe
+    - Multiverse
+
+
+Switching to another Kubernetes package repository:
+    1. vi /etc/apt/sources.list.d/kubernetes.list
+
+    2. You should see a single line with the URL that contains your current Kubernetes minor version; for ex., when using v1.29, there should be:
+        deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /
+
+    3. Change the version in the URL to the next available minor release, for ex.:
+        deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /
+
+    Save the file and exit your text editor.
+    Continue following the relevant upgrade instructions.
+
+sudo apt update
+sudo apt-cache madison kubeadm
+
+Upgrading control plane nodes:
+    The upgrade procedure on control plane nodes should be executed one node at a time.
+    Pick a control plane node that you wish to upgrade first. It must have the /etc/kubernetes/admin.conf file.
+    Call "kubeadm upgrade": For the first control plane node
+        Upgrade kubeadm:
+        # replace x in 1.30.x-* with the latest patch version
+        sudo apt-mark unhold kubeadm && \
+        sudo apt-get update && sudo apt-get install -y kubeadm='1.26.15-1.1' && \
+        sudo apt-mark hold kubeadm
+                # some GUI, session dropped
+        Verify that the download works and has the expected version:
+    
+        kubeadm version
+    
+        Verify the upgrade plan:
+    
+        sudo kubeadm upgrade plan
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

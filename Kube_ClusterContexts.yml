@@ -1,0 +1,5 @@
+# ================ Kubernetes Contexts ========================
+
+List all contexts:          kubectl config get-contexts
+Get current context:        kubectl config current-context
+Switch between contexts:    kubectl config use-context CONTEXT_NAME
