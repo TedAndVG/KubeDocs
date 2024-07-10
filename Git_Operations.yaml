@@ -1,0 +1,119 @@
+bitbucket
+
+
+Creating & Pushing Branches:
+    1: create new branch:
+    	- git checkout -b newbranch1 master
+    	
+    	- git branch -vv
+    2: Make change to some file
+    3: - git status
+    	shows as modified
+      - git add .
+      - git commit -m "upaded with new line"
+
+    Switch to main branch:
+    	- git chekout main
+     -> changes in file reverted as it were in 'main'-s state
+    
+    4: Push:
+    	git push
+     error > due to that new brtanch doesn't exist yet
+     Need to upstream:
+    	- git push --set-upstream origin newbranch1
+     (may ask to auth again)
+    
+    -----------------
+    Fetching Changes
+    
+    1: Create a new branch online
+    2: Fetch branch: (always fetch before use)
+    	- git fetch --all
+    	- git branch -v
+    	- git branch -rv
+    	
+-----------------
+Deleting Branches:
+
+    1: '-d' for delete:
+    	- git push -d origin feature/OnlineBranch1
+    	- git branch -d somebranch -> deletes branch locally, first need to move to anothe branch to be able to delete it
+    
+    
+Merging & Conflicts:    
+    Happens when several people modify the same file at the same time
+    Create new branch:
+    	- git checkout -b br-1
+    	- git checkout -b br-2
+    switch to br-1
+    		- git checkout br-1
+    		Make some changes in the: FILE, save
+    		- git add .
+    		- git commit -m "br-1 changes"
+    		- git push (git push --set-upstream origin br-1)
+    	
+    	switch to br-2
+    			- git checkout br-2
+    			Make some changes in the: SAME FILE, save
+    			- git add .
+    			- git commit -m "br-2 changes"
+    			- git push 
+    				error: "CONFLICT (add/add): Merge conflict in ..."
+    							"Automatic merge failed; fix conflicts and then commit the result."
+    			RESOLVE conflict in the file, then:
+    			- git add .
+    			- git commit -m "Conflict resolved"
+    			- git push
+    			Done: marging will be ok.
+
+-------------
+Git Revert:
+    1. Look for changes made in the log:
+    	- git log
+    	- git log -- oneline
+    
+    2. Take the needed ID from the list and revert it:
+    	- git revert 247gf75
+    	- git push
+    	Done: changes in taken branch are reverted.
+
+-------------
+Git Stash:
+    1. Switch to Main branch
+    2. Make some changes in file, save
+    	- git add .
+    
+    	Now. Here we wanted to go to another branch, BUT we don't want to commit the changes.
+    	That's why we stash the work:
+    	- git stash
+    	or - git stash save
+    	- git stash list
+    	
+    	Now we can switch to another branch:
+    	- git checkout <branch>
+    	
+    	Apply the last element in our stash
+    	(application will be made to the current branch, <branch>)
+    	- git stash apply
+    	
+    	## Clear stash:
+    	## - git clear stash
+    	
+    	Apply specific stash:
+    	- git stash apply <#Number>
+    	
+    	Then, we commit and push:
+    	- git add .
+    	- git commit -m "Stashed to <branch>"
+    	- git push
+    	Done: <branch> with applied stash
+
+-----------
+Git Ignore:
+	Appears on init.
+	Ignores files specified in .gitignore
+
+	
+
+gitkraken
+

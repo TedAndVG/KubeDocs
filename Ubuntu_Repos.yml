@@ -27,8 +27,12 @@ Switching to another Kubernetes package repository:
     Continue following the relevant upgrade instructions.
 
     - Add repo of needed version:
-        echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.26/deb/ /' >> /etc/apt/sources.list.d/kubernetes.list
-    - Register keyrig .gpg:
+        echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.26/deb/ /' > /etc/apt/sources.list.d/kubernetes.list
+        echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.27/deb/ /' >> /etc/apt/sources.list.d/kubernetes.list
+        echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' >> /etc/apt/sources.list.d/kubernetes.list
+        echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /' >> /etc/apt/sources.list.d/kubernetes.list
+        echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' >> /etc/apt/sources.list.d/kubernetes.list
+    - Register keyring .gpg:
         curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.26/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
     - Refresh repos:
         sudo apt update
@@ -51,9 +55,9 @@ Upgrading control plane nodes:
     Call "kubeadm upgrade": For the first control plane node
         1. Upgrade kubeadm:
             # replace x in 1.30.x-* with the latest patch version
-            sudo apt-mark unhold kubeadm && \
-            sudo apt-get update && sudo apt-get install -y kubeadm='1.26.15-1.1' && \
-            sudo apt-mark hold kubeadm
+sudo apt-mark unhold kubeadm && \
+sudo apt-get update && sudo apt-get install -y kubeadm='1.29.6-1.1' && \
+sudo apt-mark hold kubeadm
                     # some GUI, session dropped
         2. Verify that the download works and has the expected version:
             kubeadm version
@@ -63,7 +67,7 @@ Upgrading control plane nodes:
         
         4. Choose a version to upgrade to, and run the appropriate command. For example:
             # replace x with the patch version you picked for this upgrade
-            sudo kubeadm upgrade apply v1.26.15
+            sudo kubeadm upgrade apply v1.28.11
 
 
 ------------ Flannel --------------
@@ -105,7 +109,7 @@ https://github.com/flannel-io/flannel/issues/1390
         1. Upgrade the kubelet and kubectl: # Ubuntu, Debian, CentOS, RHEL or Fedora
             # replace x in 1.27.x-* with the latest patch version
 apt-mark unhold kubelet kubectl && \
-apt-get update && apt-get install -y kubelet='1.26.15-1.1' kubectl='1.26.15-1.1' && \
+apt-get update && apt-get install -y kubelet='1.29.6-1.1' kubectl='1.29.6-1.1' && \
 apt-mark hold kubelet kubectl
             # node goes offline
         2. Restart the kubelet:
@@ -131,7 +135,7 @@ Upgrading worker nodes:
     Upgrade kubeadm: #  Ubuntu, Debian, CentOS, RHEL or Fedora
         # replace x in 1.27.x-* with the latest patch version
 apt-mark unhold kubeadm && \
-apt-get update && apt-get install -y kubeadm='1.26.15-1.1' && \
+apt-get update && apt-get install -y kubeadm='1.27.15-1.1' && \
 apt-mark hold kubeadm
 
     Call "kubeadm upgrade":
@@ -147,7 +151,7 @@ apt-mark hold kubeadm
         1. Upgrade kubelet and kubectl: # Ubuntu, Debian, CentOS, RHEL or Fedora
             # replace x in 1.27.x-* with the latest patch version
 apt-mark unhold kubelet kubectl && \
-apt-get update && apt-get install -y kubelet='1.26.15-1.1' kubectl='1.26.15-1.1' && \
+apt-get update && apt-get install -y kubelet='1.27.15-1.1' kubectl='1.27.15-1.1' && \
 apt-mark hold kubelet kubectl
                 # node goes offline
 
@@ -177,14 +181,75 @@ chmod 440 /etc/sudoers.d/ted
 
 
 
+apt-mark unhold kubeadm && \
+apt-get update && apt-get install -y kubeadm='1.27.15-1.1' && \
+apt-mark hold kubeadm
+
+sudo kubeadm upgrade node
+
+kubectl drain node3-testing-am --ignore-daemonsets
+
+apt-mark unhold kubelet kubectl && \
+apt-get update && apt-get install -y kubelet='1.27.15-1.1' kubectl='1.27.15-1.1' && \
+apt-mark hold kubelet kubectl
+
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
 
 
 
+apt-mark unhold kubeadm && \
+apt-get update && apt-get install -y kubeadm='1.28.15-1.1' && \
+apt-mark hold kubeadm
+
+sudo kubeadm upgrade node
+
+kubectl drain node3-testing-am --ignore-daemonsets
+
+apt-mark unhold kubelet kubectl && \
+apt-get update && apt-get install -y kubelet='1.28.15-1.1' kubectl='1.28.15-1.1' && \
+apt-mark hold kubelet kubectl
+
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
+
+kubectl uncordon node3-testing-am
+--------------------------------------------------
+
+
+apt-mark unhold kubeadm && \
+apt-get update && apt-get install -y kubeadm='1.27.15-1.1' && \
+apt-mark hold kubeadm
+
+sudo kubeadm upgrade node
+
+kubectl drain node4-testing-am --ignore-daemonsets
+
+apt-mark unhold kubelet kubectl && \
+apt-get update && apt-get install -y kubelet='1.27.15-1.1' kubectl='1.27.15-1.1' && \
+apt-mark hold kubelet kubectl
+
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
 
 
 
+apt-mark unhold kubeadm && \
+apt-get update && apt-get install -y kubeadm='1.28.15-1.1' && \
+apt-mark hold kubeadm
 
+sudo kubeadm upgrade node
 
+kubectl drain node4-testing-am --ignore-daemonsets
+
+apt-mark unhold kubelet kubectl && \
+apt-get update && apt-get install -y kubelet='1.28.15-1.1' kubectl='1.28.15-1.1' && \
+apt-mark hold kubelet kubectl
+
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
+
+kubectl uncordon node4-testing-am
 
 
 
