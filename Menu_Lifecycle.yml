@@ -1,0 +1,49 @@
+15July24
+Contents:
+    - Kibana / ElsticSearch
+    - Keycloak
+    - MongoDB
+    - MSSQL
+    - FTP <-- Static images
+    - Redis
+    - RDS / PostgreSQL
+    - 'mg' services
+
+# ========== Kibana / ElasticSearch ==========
+
+Server:     AWS EC2
+Address:    kibana.menu.am
+Access:     ssh root@kibana.menu.am (refer to Roboform)
+Reference doc:  Menu_Elasticsearch_Kibana.yaml
+TLS provider:   letsencrypt.org
+Crt renewal:
+    Period: 1-2 months
+    Method:
+        Auto:   from /etc/cron.d/certbot
+        Manual: manually 'certbot renew'
+
+Architecture:
+    AWS EC2 Server kibana.menu.am:
+        docker VMs:
+            - nginx
+                config:
+                    /srv/nginx/:
+                        - auth
+                        - nginx.conf
+                        - server.crt -> /etc/letsencrypt/live/kibana.menu.am/cert.pem
+                        - server.key -> /etc/letsencrypt/live/kibana.menu.am/privkey.pem
+                    /etc/letsencrypt/live/kibana.menu.am/:
+                        - cert.pem      -> ../../archive/kibana.menu.am/cert3.pem
+                        - chain.pem     -> ../../archive/kibana.menu.am/chain3.pem
+                        - fullchain.pem -> ../../archive/kibana.menu.am/fullchain3.pem
+                        - privkey.pem   -> ../../archive/kibana.menu.am/privkey3.pem
+            - elasticsearch
+            - kibana
+            - logstash
+            
+            Latest screenpshot:
+              CONTAINER ID        IMAGE                                                  COMMAND                  CREATED             STATUS              PORTS                                NAMES:
+              2aa19951e205        docker.elastic.co/logstash/logstash:7.15.2             "/usr/local/bin/dock…"   13 months ago       Up 7 months                                              logstash
+              418f00ecf4c9        docker.elastic.co/kibana/kibana:7.15.2                 "/bin/tini -- /usr/l…"   13 months ago       Up About an hour                                         kibana
+              d031b65ce904        docker.elastic.co/elasticsearch/elasticsearch:7.15.2   "/bin/tini -- /usr/l…"   13 months ago       Up 7 months         127.0.0.1:9200->9200/tcp, 9300/tcp   elasticsearch
+              d790f248b008        nginx:1.17                                             "nginx -g 'daemon of…"   3 years ago         Up About an hour                                         nginx

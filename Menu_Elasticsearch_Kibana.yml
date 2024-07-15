@@ -1,0 +1,80 @@
+15July24
+# ===============================================================
+# =============== Kibana certificate update issue ===============
+
+Note:   Free certificate provider - https://letsencrypt.org/
+See:    https://docs.digitalocean.com/support/how-can-i-renew-lets-encrypt-certificates/
+
+Connect:
+	ssh root@kibana.menu.am
+
+    On 'certbot renew' error arised:
+    #    Traceback (most recent call last):
+    #    File "/usr/lib/python3/dist-packages/certbot/renewal.py", line 67, in _reconstitute
+    #        renewal_candidate = storage.RenewableCert(full_path, config)
+    #    File "/usr/lib/python3/dist-packages/certbot/storage.py", line 463, in __init__
+    #        self._check_symlinks()
+    #    File "/usr/lib/python3/dist-packages/certbot/storage.py", line 522, in _check_symlinks
+    #        "expected {0} to be a symlink".format(link))
+    #    certbot.errors.CertStorageError: expected /etc/letsencrypt/live/kibana.menu.am/cert.pem to be a symlink
+    #    Renewal configuration file /etc/letsencrypt/renewal/kibana.menu.am.conf is broken. Skipping.
+
+Kibana - Files initially was:
+    ll /srv/nginx/ # nginx conf
+    total 24
+    drwxr-xr-x 2 root root 4096 May 14 06:39 ./
+    drwxr-xr-x 5 root root 4096 Jul 25  2020 ../
+    -rw-r--r-- 1 root root  104 Jul 25  2020 auth
+    -rw-r--r-- 1 root root 1778 Jun  9  2023 nginx.conf
+    lrwxrwxrwx 1 root root   50 May 14 06:39 server.crt -> /etc/letsencrypt/live/kibana.menu.am-0001/cert.pem
+    -rw-r--r-- 1 root root 1165 Jul 25  2020 server.crt_back
+    lrwxrwxrwx 1 root root   53 May 14 06:36 server.key -> /etc/letsencrypt/live/kibana.menu.am-0001/privkey.pem
+    -rw-r--r-- 1 root root 1762 Jul 25  2020 server.key_back
+
+    ll /etc/letsencrypt/archive/kibana.menu.am # certs archive
+    total 56
+    drwxr-xr-x 2 root root 4096 Jul 15 10:43 ./
+    drwx------ 4 root root 4096 Feb  9 13:57 ../
+    -rw-r--r-- 1 root root 1765 Feb  9 13:57 cert1.pem
+    -rw-r--r-- 1 root root 1765 Apr  9 19:34 cert2.pem
+    -rw-r--r-- 1 root root 1765 Jun  8 18:42 cert3.pem
+    -rw-r--r-- 1 root root 1826 Feb  9 13:57 chain1.pem
+    -rw-r--r-- 1 root root 1826 Apr  9 19:34 chain2.pem
+    -rw-r--r-- 1 root root 1801 Jun  8 18:42 chain3.pem
+    -rw-r--r-- 1 root root 3591 Feb  9 13:57 fullchain1.pem
+    -rw-r--r-- 1 root root 3591 Apr  9 19:34 fullchain2.pem
+    -rw-r--r-- 1 root root 3566 Jun  8 18:42 fullchain3.pem
+    -rw------- 1 root root 1704 Feb  9 13:57 privkey1.pem
+    -rw------- 1 root root 1704 Apr  9 19:34 privkey2.pem
+    -rw------- 1 root root 1704 Jun  8 18:42 privkey3.pem
+
+Actions taken:
+    ll /etc/letsencrypt/live/kibana.menu.am
+    
+    unlink cert.pem
+    unlink chain.pem
+    unlink fullchain.pem
+    unlink privkey.pem
+    
+    cd /etc/letsencrypt/live/kibana.menu.am/
+    ln -s   ../../archive/kibana.menu.am/cert3.pem cert.pem
+    ln -s   ../../archive/kibana.menu.am/chain3.pem chain.pem
+    ln -s   ../../archive/kibana.menu.am/fullchain3.pem fullchain.pem
+    ln -s   ../../archive/kibana.menu.am/privkey3.pem privkey.pem
+    
+    cd /srv/nginx/
+    unlink server.key
+    unlink server.crt
+    ln -s  /etc/letsencrypt/live/kibana.menu.am/privkey.pem server.key
+    ln -s  /etc/letsencrypt/live/kibana.menu.am/cert.pem server.crt
+    
+    Renew certificate (every 2-3 months:
+        certbot renew
+    
+    docker restart kibana
+    docker restart nginx
+
+------------------
+Edited /etc/cron.d/certbot:
+    /etc/nginx/sites-available/default ('kibana.menu.am' instead of 'service.menu.am')
+    run afterward from /etc/cron.d/certbot:  /usr/bin/certbot -a \! -d /run/systemd/system && perl -e 'sleep int(rand(43200))' && certbot -q renew

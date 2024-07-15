@@ -4,6 +4,8 @@ Content:
     - Etcd
     - Kube Scheduler
     - ConfigMaps
+    - Update Kubernetes
+    - Update AWS EKS cluster
 
 
 Kubernetes Control Plane:
@@ -48,8 +50,19 @@ ConfigMaps:
 # =============================================================
 # ==================== Upgrade Kubernetes =====================
 # =============================================================
+See:    https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/
 
-
+    # =========== Add my user account on OS =================
+        groupadd ted
+        useradd -g ted -m -d /home/ted -s /bin/bash -c ted ted
+        passwd ted
+        
+        vi /etc/sudoers.d/ted
+        ted  ALL=(ALL)  NOPASSWD: ALL
+        
+        chmod 440 /etc/sudoers.d/ted
+        # ==== Done. =====
+        
 # ============= Upgrading Kubernetes k8s ======================
     Prepare the Control and Worker nodes OS repos:
         Repo's file location - /etc/apt/sources.list.d/kubernetes.list
@@ -160,6 +173,17 @@ apt-mark hold kubelet kubectl
 # =============== Worker Nodes Upgrade ===============
 # ====================================================
 
+    # =========== Add my user account on OS =================
+        groupadd ted
+        useradd -g ted -m -d /home/ted -s /bin/bash -c ted ted
+        passwd ted
+        
+        vi /etc/sudoers.d/ted
+        ted  ALL=(ALL)  NOPASSWD: ALL
+        
+        chmod 440 /etc/sudoers.d/ted
+        # ==== Done. =====
+        
 Upgrading worker nodes:
     After the kubelet is upgraded on all nodes verify that all nodes are available again by running the following command from anywhere kubectl can access the cluster
         kubectl get nodes
@@ -201,15 +225,10 @@ apt-mark hold kubelet kubectl
 
 
 
+# =====================================================================================================
+# ================= Update AWS EKS cluster ============================================================
 
-
-
-
-
-
-
-
-
+Note: Refer to AWS EKS update documentaion. To be done via Web + CLI.
 
 
 

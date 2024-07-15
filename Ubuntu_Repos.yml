@@ -1,4 +1,17 @@
 09Jul24
+
+    # =========== Add my user account on OS =================
+        groupadd ted
+        useradd -g ted -m -d /home/ted -s /bin/bash -c ted ted
+        passwd ted
+        
+        vi /etc/sudoers.d/ted
+        ted  ALL=(ALL)  NOPASSWD: ALL
+        
+        chmod 440 /etc/sudoers.d/ted
+        # ==== Done. =====
+
+
 # ============== Ubuntu Repositories ==============
 # See: https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/upgrading-linux-nodes/
 
@@ -48,6 +61,18 @@ Switching to another Kubernetes package repository:
     Uncordon the Control Plane node
 # =============================================================
 # ================ Upgrading Control plane ====================
+
+    # =========== Add my user account on OS =================
+        groupadd ted
+        useradd -g ted -m -d /home/ted -s /bin/bash -c ted ted
+        passwd ted
+        
+        vi /etc/sudoers.d/ted
+        ted  ALL=(ALL)  NOPASSWD: ALL
+        
+        chmod 440 /etc/sudoers.d/ted
+        # ==== Done. =====
+
 
 Upgrading control plane nodes:
     The upgrade procedure on control plane nodes should be executed one node at a time.
@@ -127,6 +152,19 @@ apt-mark hold kubelet kubectl
 # =============== Worker Nodes Upgrade ===============
 # ====================================================
 
+
+    # =========== Add my user account on OS, on ALL nodes =================
+        groupadd ted
+        useradd -g ted -m -d /home/ted -s /bin/bash -c ted ted
+        passwd ted
+        
+        vi /etc/sudoers.d/ted
+        ted  ALL=(ALL)  NOPASSWD: ALL
+        
+        chmod 440 /etc/sudoers.d/ted
+        # ==== Done. =====
+
+
 Upgrading worker nodes:
     After the kubelet is upgraded on all nodes verify that all nodes are available again by running the following command from anywhere kubectl can access the cluster
         kubectl get nodes
@@ -164,19 +202,6 @@ apt-mark hold kubelet kubectl
         # replace <node-to-uncordon> with the name of your node
             kubectl uncordon <node-to-uncordon>
                 # node comes back online
-
-
-
-
-
-groupadd ted
-useradd -g ted -m -d /home/ted -s /bin/bash -c ted ted
-passwd ted
-
-vi /etc/sudoers.d/ted
-ted  ALL=(ALL)  NOPASSWD: ALL
-
-chmod 440 /etc/sudoers.d/ted
 
 
 
@@ -232,24 +257,24 @@ apt-mark hold kubelet kubectl
 sudo systemctl daemon-reload
 sudo systemctl restart kubelet
 
-
+==========================
 
 apt-mark unhold kubeadm && \
-apt-get update && apt-get install -y kubeadm='1.28.15-1.1' && \
+apt-get update && apt-get install -y kubeadm='1.30.2-1.1' && \
 apt-mark hold kubeadm
 
-sudo kubeadm upgrade node
+kubeadm upgrade node
 
-kubectl drain node4-testing-am --ignore-daemonsets
+kubectl drain node1-testing-am --ignore-daemonsets
 
 apt-mark unhold kubelet kubectl && \
-apt-get update && apt-get install -y kubelet='1.28.15-1.1' kubectl='1.28.15-1.1' && \
+apt-get update && apt-get install -y kubelet='1.30.2-1.1' kubectl='1.30.2-1.1' && \
 apt-mark hold kubelet kubectl
 
-sudo systemctl daemon-reload
-sudo systemctl restart kubelet
+systemctl daemon-reload
+systemctl restart kubelet
 
-kubectl uncordon node4-testing-am
+kubectl uncordon node1-testing-am
 
 
 
