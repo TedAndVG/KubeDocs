@@ -1,5 +1,60 @@
 # ================ Kubernetes Contexts ========================
 
+Note:   Contexts are shortcuts that let you quickly switch between different cluster configurations without typing long and tedious commands.
+        Context details are stored in kubeconfig yaml file
+        
 List all contexts:          kubectl config get-contexts
 Get current context:        kubectl config current-context
-Switch between contexts:    kubectl config use-context CONTEXT_NAME
+Switch between contexts:    kubectl config use-context <NAME>
+
+Create context:     kubectl config set-context <NAME> [--cluster=<cluster>] [--user=<user>] [--namespace=<namespace>] [--current]
+Modify context:     kubectl config set-context <NAME> --user=tester # <--- example modifying 'user'
+Delete a Context From The Kubeconfig File:  kubectl config delete-context <NAME>
+
+Get users:  kubectl config get-users
+
+
+The kubeconfig file:
+    contains three main sections:
+        - clusters
+        - users
+        - contexts
+    View main sections:     kubectl config view
+    
+Example context YAML file:
+    apiVersion: v1
+    kind: Config
+    preferences: {}
+    clusters:
+    - name: development
+      cluster:
+        server: https://1.2.3.4
+        certificate-authority: fake-ca-file
+    - name: test
+      cluster:
+        server: https://5.6.7.8
+        insecure-skip-tls-verify: true
+    users:
+    - name: developer
+      user:
+        client-certificate: fake-cert-file
+        client-key: fake-key-file
+    - name: experimenter
+      user:
+        username: admin
+        password: secret
+    contexts:
+    - name: dev-frontend
+      context:
+        cluster: development
+        user: developer
+        namespace: frontend
+    - name: dev-storage
+      context:
+        cluster: development
+        user: developer
+        namespace: storage
+    - name: exp-test
+      context:
+        cluster: test
+        user: experimenter

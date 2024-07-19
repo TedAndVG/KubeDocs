@@ -1,0 +1,45 @@
+16July24
+# =============== Setup .p12 VPN Client ===============
+
+# VPN server
+VPN server: 85.10.232.246
+    DNS name: vpn.menu.am
+
+# Creating VPN user
+Creating VPN user:
+    Actions:
+      - ssh tad@85.10.232.246 (refer to Roboform)
+      - Run:    sudo /opt/src/ikev2.sh
+      - pack 3 files inti zip and pass to client
+
+# ------------------- Ubuntu Linux -------------------
+Ubuntu VPN Client setup:
+    sudo apt-get update
+    sudo apt-get install network-manager-strongswan
+    
+    cp ....../<user>.p12 /home/<user>/
+    cd /home/<user>/
+    
+    openssl pkcs12 -in <user>.p12 -cacerts -nokeys -out ca.cer
+    openssl pkcs12 -in <user>.p12 -clcerts -nokeys -out client.cer
+    openssl pkcs12 -in <user>.p12 -nocerts -nodes  -out client.key
+    rm <user>.p12
+    
+    sudo chown root:root ca.cer client.cer client.key
+    sudo chmod 600 ca.cer client.cer client.key
+
+    GUI - set up and enable the VPN connection:
+        Settings -> Network -> VPN, click +
+            Name:   <name for vpn connection>
+                IPsec/IKEv2 (strongswan)
+            Gateway (Server): 85.10.232.246
+            Certificate:    ca.cer
+            Client:
+                Authentication: Certificate(/private key)
+                Certificate (file): client.cer
+                Private key:    client.key
+            Options:
+                check the 'Request an inner IP address' checkbox
+            
+            Click Add to save
+            Turn the VPN switch ON

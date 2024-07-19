@@ -1,6 +1,7 @@
 15July24
+
 Contents:
-    - Kibana / ElsticSearch
+    - Kibana / ElsticSearch / Certification
     - Keycloak
     - MongoDB
     - MSSQL
@@ -10,17 +11,16 @@ Contents:
     - 'mg' services
 
 # ========== Kibana / ElasticSearch ==========
-
 Server:     AWS EC2
 Address:    kibana.menu.am
 Access:     ssh root@kibana.menu.am (refer to Roboform)
 Reference doc:  Menu_Elasticsearch_Kibana.yaml
-TLS provider:   letsencrypt.org
-Crt renewal:
+Certificate provider:   letsencrypt.org
+Certificate renewal:
     Period: 1-2 months
     Method:
         Auto:   from /etc/cron.d/certbot
-        Manual: manually 'certbot renew'
+        Manual: manually run 'sudo certbot renew'
 
 Architecture:
     AWS EC2 Server kibana.menu.am:

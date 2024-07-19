@@ -1,0 +1,138 @@
+17July24
+# ========================== Access to Kubernetes: Users, Service Accounts, RBAC, Roles ========================
+See:    https://medium.com/containerum/configuring-permissions-in-kubernetes-with-rbac-a456a9717d5d
+
+Configuring permissions in Kubernetes with RBAC
+
+In Kubernetes, Identity and User management are not integrated in the platform 
+and should be managed by external IAM platforms like 
+Keycloak, Active Directory, Google’s IAM, etc. 
+However, authentication and authorization are handled by Kubernetes.
+
+Check if RBAC is enabled you should see the API version:
+    .rbac.authorization.k8s.io/v1
+
+Get users:  kubectl config get-users
+Note:   Users are created along with their certificates, will be sdetailed later on here.
+
+The RBAC model in Kubernetes is based on three elements:
+    - Roles:          definition of the permissions for each Kubernetes resource type
+        - Roles
+        - ClusterRoles
+        - RoleBindings
+        - ClusterRoleBindings
+    - Subjects:       users (human or machine users) or groups of users
+    - RoleBindings:   definition of what Subjects have which Roles
+
+List elements:
+    Roles:                  kubectl get Roles
+    ClusterRoles:           kubectl get ClusterRoles
+    RoleBindings:           kubectl get RoleBindings
+    ClusterRoleBindings:    kubectl get ClusterRoleBindings
+
+How to enable permissions in Roles:
+    - Creating a User
+    - Create/select a Role
+        # example file: Role.yaml
+        kind: Role
+        apiVersion: rbac.authorization.k8s.io/v1
+        metadata:
+          name: modify-pods # role name
+        rules:
+          - apiGroups: [""]
+            resources:
+              - pods
+            verbs:
+              - get
+              - list
+              - delete
+
+    - Bind user with Role / Roles # see below
+    
+How to enable permissions in ClusterRoles:
+    - Creating a User
+    - Create/select a ClusterRole
+        # example file: ClusterRole.yaml
+        kind: ClusterRole
+        apiVersion: rbac.authorization.k8s.io/v1
+        metadata:
+          name: cluster-role-name # see it used below
+          namespace: namespace-name # used for which namespace (I usaed 'demo', but it worked on 'menu-test' cluster)
+        rules:
+          - apiGroups: ['*'] # this is for all apiGroups
+            resources: ['*'] # this is for all resources
+            # see below for 'Built-in Resource Types'
+            verbs: ['*'] # this is for all verbs
+            # see below for 'verbs'
+
+    - Bind user with ClusterRole / ClusterRoles
+        # example file: ClusterRoleBinding.yaml
+        kind: ClusterRoleBinding
+        apiVersion: rbac.authorization.k8s.io/v1
+        metadata:
+          name: role-binding-name # shown by:       kubectl get ClusterRoleBindings
+                                  # detailed info:  kubectl describe ClusterRoleBindings role-binding-name
+        subjects:
+        - kind: User
+          name: <user-name>
+          apiGroup: rbac.authorization.k8s.io
+        roleRef:
+          kind: ClusterRole
+          name: cluster-role-name # see above
+          apiGroup: rbac.authorization.k8s.io
+
+Test if a service account can access resources:
+    Use the following command for user-impersonation:   kubectl <verb-name> <resource-name> --as=jenkins
+    Use the following command to verify API access:     kubectl auth can-i <verb-name> <resource-name>
+    Run the following command to see if requests can be made from the service account and list pod in the namespace:
+        kubectl auth can-i get pods -n demo --as=system:serviceaccount:test:demoAccount
+
+Built-in Resource Types:
+        - Pod
+        - Deployment
+        - ReplicaSet
+        - StatefulSet
+        - DaemonSet
+        - PersistentVolume
+        - PersistentVolumeClaim
+        - Service
+        - Namespace
+        - ConfigMap
+        - Secret
+        - Job
+
+List all resources in a cluster:
+        - kubectl api-resources
+        - kubectl api-resources -o wide
+        - kubectl get all --all-namespaces
+        - kubectl api-resources --verbs=list -o name
+
+Verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+
+
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: view-metrics-hrant
+subjects:
+- kind: User
+  name: hrant
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+
+
+
+
+
