@@ -22,6 +22,11 @@ Note:   If 'NoExecute' effect added after that non-tolerated Pods are started, t
 
 Note:   Use 'NoExecute' with 'NoSchedule', otherwise infinite loop of Pod's 'termination/start/live-for_tolerationSeconds' situation is possible
 
+Note:   effect_value-s are:
+            - NoSchedule
+            - NoExecute
+            - PreferNoSchedule
+            
 # Terraform code =====================================
 Add Taint manually to Node:
     kubectl taint nodes <node_name> <key_name>=<key_value>:<effect_value>
