@@ -1,3 +1,6 @@
+# Use ReplicaSet instead of ReplicaController
+#  and Use Deployment instead of ReplicaSet
+
 #===================== ReplicaSet =======================
 ReplicaSet: 
     - is a new generation of ReplicaController

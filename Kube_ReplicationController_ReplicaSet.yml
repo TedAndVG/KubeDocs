@@ -1,3 +1,5 @@
+# Use ReplicaSet instead of ReplicaController
+
 Content:
     - ReplicationController
     - Creating and observing ReplicationController

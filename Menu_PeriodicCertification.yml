@@ -1,0 +1,140 @@
+# 16Sep2024
+#
+# Menu.am Services Periodical Certification, to be done every 2-3 months
+#
+
+Clouds:
+    CloudFlare: for DNS only
+    Hetzner (all for TEST & DEV):
+        VMs (Ubuntu-s):
+            - ftp.testing <- images to upload
+            - BitBucket runners:
+                - container runners
+                - shell runners
+            - vpn.menu.am (CentOS or OracleLinux)
+            - workspaces (?) - no need.
+            - DBs:
+                - Redis
+                - Elastic
+                - Mongo
+                - Postgres
+            - router.testing.am - ssh, ...
+            - (request token(timed): identity - keycloak, auth.provider (?)
+            - sonatype-Nexus <- JAR artifactory
+            - Win2022 - SQL-Web (timed):
+                - 1x instance, 2 DBs - DEV
+                - 1x instance, 2 DBs - TEST
+            - MikroTik -> to be removed (vpn will be instead)
+            
+    Total:  23 VMs (+10 for k8s nodes, TEST + DEV)
+    Hosted on ESXi site in:
+        - menuam.ddserver.org
+            - Testing
+                - Hetzner
+                    - esxi_test_dev_login
+    vpn:    /opt/src (from mail by 05.02.2024, url to github.com)
+
+Amazon RDS:
+        - As service
+
+Postgres DB:
+        - main-PSQL
+
+Amazon Elastic Cache:
+        - main-Redis
+
+EC2 Dashboard:
+        - nodes
+        - "dms" = Hetzner Win2022
+
+Stacks:
+    - kubernetes
+        - dev
+            - namespaces
+        - test
+            - namespaces
+        - prod
+            - namespaces
+
+
+DNS:
+    Record types
+        # nslookup -type=SOA google.com ns1.google.com (<auth.source>)
+        Recursive DNS server
+            -//- -type=NS -//-
+            # nslookup -type=NS google.com ns1.google.com (<auth.source>)
+
+
+Access keys:
+    RoboForm: Home 
+                - DevOps_shared
+                    - PROD
+                        - AWS (private keys, public on server) -> Copied into Mc/tade/menu/AWS/<both>.pem:
+                            - centos.pem        (for 1 server only)
+                            - server-access.pem (for all other servers)
+                            
+                            
+# ======================= Certification =======================
+Certification:  LetsEncrypt.org
+    cert-manager.io:
+        - cert-manager-issuer.yaml -> automatically generated/renewed
+    kubernetes ingress-nginx:
+        - nginx_ingress_values.yaml
+    kubectl get namespaces:
+        - ...
+        - kube-system
+            - get pods -n kube-system (-n common)
+
+
+On Reporting Service Certification Issue:
+    Connect on RDP to MSSQL_EC2_prod (Win):
+        - Get certificate for https once per 3 months
+            - there is some "Certificate -> Network connection binding"
+        - MSSQL_EC2_prod_rdp
+            - "ReportServer Configuration Manager" application
+                - DMS-PROD\SSRS
+                    - go to "Web Service URL" -> Delete identifier (https) -> Add "Select correct certificate" -> Ok
+                    - Also, go to "Task Scheduler" -> win-acme-renew (renews certification job):
+                        - This does certification renew, but the app ("Reporting service", see above) can't take and use that renewed cert.
+                          So we do it maually (see above). (Ask Hrant)
+        - On the same server:
+            - DB for "menu" is in "MS SQL Server Management Studio" app (as Adminitsrator) -> DB Operations
+                - Scripts:
+                    - rotate_dms_backups (for backupsretention, scheduled task)
+                    - win_acme_renew (in see above, for "MSSQL_EC2_prod_rdp" certification
+                - Backup in:
+                    - SQL Agents
+                        - backup_dms (for retention period/rotation, see above in scripts.rotate_dms_backups)
+
+Mongo DB disk space maintenance (do every 3 months):
+    Connect to MongoDB:
+        - MongoDB_EC2_prod_ssh:
+            Is a server on AWS, that has a docker container inside
+            # docker ps
+            (lists docker process, connect to it)
+                # docker exec -it mongo bash
+                    - Connect to DB:
+                        # mongo -u mail
+                    - In DB shell:
+                        # (see history)
+                    - Do maintenance:
+                        The biggest table (look the console history (see screenshot))
+                        # use search_logging
+                        For DB file size (mongo) see AWS EC2 attached disks
+                        - Look once per 1 months
+                        - Keep info for 3 months
+                        - Delete everything beyond 3 months
+
+AWS RDS (pending):
+    Certificate update -> Dashboard -> DB certificate expiration date (for connecting to DB via TLS)
+    main-psql (Postgres DB)
+
+
+'mg-sign':
+    - move to another node
+    - strategy:
+        type: recreate
+
+
+
+

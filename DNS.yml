@@ -1,0 +1,158 @@
+
+
+
+
+DNS Zones:  The term is to show that a specific domain — or a part of it (a subdomain/subdomains) — is managed by a single administrator. 
+            The administrator can manage DNS records related to their DNS zone by changing, adding, or deleting records.
+            When you buy a domain, you automatically get control of its DNS zone; you can manage the DNS record of this domain and its subdomains.
+            However, if you want, you can separate out (delegate) some subdomains so that they are managed by someone else.
+            Such a separation means that you create a new DNS zone which contains only the separated subdomain(s).
+
+What components does a DNS zone include:    A DNS zone includes resource records as its components. One SOA and two NS records are mandatory.
+How can you separate subdomains into a separate DNS zone:   You need to add NS records for the relevant subdomains to the main domain (see "DNS Zone Delegation")
+Does each DNS zone correspond to one file with its DNS records: Yes. One DNS zone corresponds to one file that contains all the DNS records for that specific DNS zone
+
+# =========================================
+Range of DNS records:
+    DNS Record Type	     Purpose	                                                                                                    Example
+    -   A	         :   Translates a domain name into an IPv4 address	                                                            |   A record for “example.com” pointing to “192.168.1.1”
+    -   AAAA	     :   Translates a domain name to an IPv6 address	                                                            |   AAAA record for “example.com” pointing to “2001:0db8:85a3::8a2e:0370:7334”
+    -   CNAME	     :   Creates an alias for a domain name	                                                                        |   CNAME record for “shop” to example.com domain name pointing to “website-builder.ursite.com”
+    -   MX	         :   Shows which mail servers are in charge of receiving emails	                                                |   MX record for “example.com” pointing to “mail.example.com”
+    -   TXT	         :   Store text information for various purposes such as SPF configuration or domain name verification	        |   TXT record for “example.com” with an email SPF configuration
+    -   NS	         :   Stands for “name servers;” specifies authoritative name servers for the domain name	                    |   NS record for “example.com” pointing to “ns1.example.com” and “ns2.example.com”
+    -   SOA	         :   Provides essential parameters for the zone, including primary name server and administrator email address	|   Provides essential parameters for the zone (e.g., ns1.example.com, admin.example.com)
+
+    -   PTR record   :   Provides a domain name in reverse-lookups.
+    -   SRV record   :   Specifies a port for specific services.
+
+# =========================================
+What Is a DNS Zone File:    A DNS zone file is usually presented in the form of a plain-text file containing all the important information about a domain name.
+                            It contains resource records that are used to map and link domain names to corresponding requests.
+                            A DNS zone file typically contains a Start of Authority (SOA) and NS record and other relevant resource records (RRs,) including—but not limited to—MX, CNAME, A, and TXT records.
+
+        Resource records in DNS zone files  Function(s)
+        - SOA (start of authority) records:	Provide the primary source of authority for the domain, including all essential information like the primary DNS server, contact email address, and settings that control how the domain operates
+        - NS (nameserver) records:          Specify IP addresses of authoritative nameservers and which servers are responsible for providing DNS information about the domain
+        - A (address) records:              Map the domain names to their associated IP addresses
+        - MX (mail exchange) records:   	Identify the mail servers responsible for handling email for the domain
+        - CNAME (canonical name) records:	Provide an alias with an actual domain name for existing A records.
+        - TXT (text) records:           	Contain text-based information associated with the domain, such as SPF (Sender Policy Framework) records used for domain ownership validation.
+
+
+# =========================================
+What Does a DNS Zone File Look Like:
+    Example DNS Zone File:
+    #    $TTL 1h
+    #    @               IN      SOA     dns1.gcore.com. hostmaster.gcore.com. (
+    #                            20211209
+    #                            1d
+    #                            2h
+    #                            4w
+    #                            1h
+    #                            )
+    #    
+    #                    IN      NS      dns1.gcore.com.
+    #                    IN      NS      dns2.gcore.com.
+    #    
+    #                    IN      MX      10      mail.gcore.com.
+    #    
+    #    dns1            IN      A       192.168.0.1
+    #    dns2            IN      A       192.168.0.2
+    #    mail            IN      A       192.168.0.3
+    #    web             IN      A       192.168.0.4
+    #    
+    #    www             IN      CNAME   web
+    #    ftp             IN      CNAME   web
+    #    
+    #    @        IN    TXT     "v=spf1 a mx include:spf.gcore.com ~all"
+    #    spf        IN    TXT    "v=spf1 include:spf.protection.outlook.com include:spf.emailsignatures365.com -all"
+    #   include:spf.emailsignatures365.com -all"
+
+    Explanation:
+    In this example, the DNS zone file begins with a time-to-live (TTL) directive, which sets the duration for caching DNS records.
+    The “@” symbol represents the root of the domain.
+    Next is the start of authority (SOA) record, which identifies the primary DNS server for the domain, and includes the administrator’s email address.
+    Two nameservers are specified using the IN NS (Internet Nameserver) command, and an MX record is added to designate the mail server, and assign it a priority value of 10.
+    
+    Several A records are included to define the IP address of various servers.
+    These A records specify the DNS server, mail server and web server IP addresses.
+    The zone file also contains CNAME records, which serve as aliases or alternative names for the web server.
+    This allows different domain names to point to the same web server.
+    Finally, a TXT record is included to specify the Sender Policy Framework (SPF) record for email authentication purposes.
+    This record helps verify that incoming emails originate from authorized servers.
+    
+    By structuring the DNS zone files like this, administrators can effectively manage the DNS records for their domain.
+    This ensures proper routing of emails, website accessibility, and email authentication.
+
+# =========================================
+DNS Zone Delegation:    DNS zone delegation is a process that involves dividing a larger DNS zone into smaller zones and assigning them to different DNS servers.
+                        This process enables more efficient and localized handling of DNS queries, particularly for larger organizations with multiple subdomains. 
+                        By delegating zones, the burden on a single server is reduced, leading to improved performance and availability of the overall DNS infrastructure.
+
+
+# =========================================
+How to Manage DNS Records with a Zone File:
+
+    Caution: As we dive into the complexities of zone files and DNS record intricacies, note that the upcoming discussion is particularly tailored for those with a higher level of technical expertise in DNS operations.
+    
+    Each authoritative DNS server is responsible for a zone, which is made up of one or more domain names.
+    Nowadays, popular DNS servers like PowerDNS and Microsoft DNS store and manage their DNS records via databases.
+    However, the BIND zone file format is still used as a general text representation.
+    You can create a zone file to define DNS records or export one from an existing provider or system, and then import it into a DNS server that stores them in their database.
+    
+    Each line in the zone file that starts with a domain name or a placeholder becomes a DNS record, and each line that begins with a dollar sign becomes a variable.
+    Semicolons initiate comments, and parentheses let you split record definitions over multiple lines.
+    
+    Let’s look at the following example:
+        #   ; zone file of examples.com
+        #   $ORIGIN example.com.
+        #   $TTL 3600
+        #   
+        #   @ IN SOA ns.example.com. admin.example.com. (
+                #2022040101 ; Zone file serial number
+                #3600       ; Refresh
+                #1800       ; Retry
+                #3600       ; Expire
+                #3600)      ; Minimum TTL  
+        #   
+        #   @ IN NS ns.example.com.
+        #   @ IN MX 10 mail.example.com.
+        #   
+        #   @ IN A 192.0.2.1
+        #   mail IN A 192.0.2.2
+        #   ns IN A 192.0.2.3
+        #   
+        #   @ IN AAAA 2001:db8::1
+        #   
+        #   www IN CNAME example.com.
+        #   
+        #   @ 7200 IN TXT "v=spf1 ip4:192.0.2.1 -all"
+        #   
+        #   customer1 IN NS ns.customer1.net.
+    
+    Now let’s break down what this zone file tells us:
+        -   ; zone file of examples.com:    The first line is a comment that describes to which zone the file belongs.
+
+        -   $ORIGIN example.com.:   The second line defines the $ORIGIN variable with the value example.com.
+            The trailing dot makes it a fully qualified domain name that starts from the root of all domains.
+            You can see it a bit like an absolute file path.
+            To use the $ORIGIN variable, you can use the @ symbol as a placeholder.
+            Everywhere you write @, the content of the $ORIGIN variable will be added—in this case, example.com.
+            
+        -   $TTL 3600:  Use the $TTL variable to set the default caching time for each DNS record that doesn’t define its TTL explicitly.
+
+        -   @ IN SOA ns.example.com. admin.example.com. (..:    The SOA record is mandatory for a zone file; the example uses parentheses to split it over multiple lines for readability and includes comments to explain the numbers.
+            It also uses the @ placeholder, so we don’t have to repeat our domain root.
+
+        -   @ IN NS ns.example.com.:    One NS record is also mandatory to define the authoritative DNS server of the zone.
+
+        -   mail IN A 192.0.2.2:    Subdomains are the next element.
+            The A record for the email server only uses mail as a name. Since it doesn’t include a trailing dot, it will become a subdomain of the domain root.
+
+        -   @ 7200 IN TXT "v=spf1 ip4:192.0.2.1 -all":  The TXT record defines an explicit TTL with 7200 seconds, which overrides the default of 3600.
+
+        -   customer1 IN NS ns.customer1.net.:  The last entry is an NS record for a subdomain; it delegates the resolution of the customer1 subdomain and all the subdomains under it to another DNS server.
+
+
+

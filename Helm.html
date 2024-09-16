@@ -1,0 +1,162 @@
+Helm - это менеджер пакетов для Kubernetes. Этот инструмент позволяет нам обернуть Kubernetes приложения в удобные пакеты, называемые чартами, которые можно легко развертывать, обновлять и управлять ими в любой момент времени.
+
+Чарты – это пакеты, которые могут включать в себя все для запуска приложения в Kubernetes, от deployments до services. Все это дает возможность работать с приложениями как с единой сущностью, а не как с набором отдельных ресурсов, которые еще и в ручную нужно настраивать...
+
+Так же Helm упрощает управление зависимостями между приложениями, позволяет легко параметризировать настройки приложений через файлы values.yaml и дает возможность повторного использования чартов с помощью шаблонизации.
+
+К тому же можно с легкостью откатиться к предыдущей версии нашего приложения.
+Структура Helm Chart
+
+Структура Helm Chart представляет собой директорию, которая содержит комплекс механизмов для управления приложениями, упаковывая их в чарты, которые можно легко инсталлировать, обновлять и управлять.
+
+Первый и самый главный файл - Chart.yaml, он содержит метаданные: имя чарта, версию, описание, информацию о зависимостях и т.д. Этот файл обязателен и помогает идентифицировать чарт:
+
+apiVersion: v2
+name: mychart
+version: 1.0.0
+description: "helm chart"
+keywords:
+  - mykeyword
+home: http://example.com/
+sources:
+  - https://github.com/example/mychart
+dependencies:
+  - name: nginx
+    version: "1.14.0"
+    repository: "https://charts.helm.sh/stable"
+
+Values.yaml определяет конфигурационные параметры, которые можно переопределить во время установки или обновления чарта. Эти значения используются в шаблонах чарта для динамической генерации Kubernetes манифестов:
+
+replicaCount: 2
+image:
+  repository: nginx
+  tag: stable
+  pullPolicy: IfNotPresent
+service:
+  type: NodePort
+  port: 80
+
+Директория templates/ содержит шаблоны манифестов Kubernetes, которые используют как статические, так и динамические данные из values.yaml и Chart.yaml для генерации конечных манифестов. Helm обрабатывает каждый файл в этой директории, применяя шаблонизацию для создания ресурсов Kubernetes. Например, templates/service.yaml:
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mychart.fullname" . }}
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 80
+  selector:
+    app.kubernetes.io/name: {{ include "mychart.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+
+templates/deployment.yaml:
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mychart.fullname" . }}
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "mychart.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "mychart.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: nginx
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 80
+
+templates/_helpers.tpl:
+
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "mychart.name" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+Charts/ - это директория для подчартов, т.е., зависимостей вашего чарта. Если приложение требует другие чарты для своей работы, они размещаются здесь
+
+.helmignore - файл, аналогичный .gitignore, позволяющий исключить файлы и директории из пакета чарта, что уменьшает его размер и предотвращает включение в чарт лишних данных и т.д:
+
+# игнорить все файлы .git и .svn
+.git
+.svn
+
+# игнорить все файлы .md, кроме README.md
+*.md
+!README.md
+
+# игнорить специфичные файлы и директории
+tmp/
+temp/
+secrets.yaml
+
+Файл NOTES.txt в директории templates предоставляет пользователю информацию после установки чарта, например, как подключиться к приложению или следующие шаги после установки.:
+
+1. Get the application URL by running these commands:
+  {{- if .Values.service.type == "NodePort" }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "mychart.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+  {{- end }}
+
+Этот файл также поддерживает шаблонизацию.
+Управление хранилищами
+
+Helm использует хранилище для хранения информации о релизах, и по умолчанию в Helm 3 это хранилище реализовано с использованием ConfigMaps. Однако существуют альтернативные хранилища, такие как Secrets или хранение в базе данных SQL, которые в разы удобней.
+
+Secrets - это базовый выбор для хранения чувствительной информации: пароли или ключи, связанные с Helm релизами.
+
+Настройка Secrets:
+
+# values.yaml для чарта
+
+secrets:
+  enabled: true
+  backend: secrets
+
+# файл templates/secrets.yaml
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-secrets
+type: Opaque
+data:
+  # можно указать данные, к примеру пароль
+
+Для других сценариев, когда требуется более вместительное и функциональное хранилище, можно использовать SQL базу данных. Например, можно использовать PostgreSQL:
+
+# values.yaml для чарта
+
+sql:
+  enabled: true
+  backend: postgresql
+  postgresqlHost: my-postgresql-host
+  postgresqlDatabase: helm_releases
+  postgresqlUsername: helm
+  postgresqlPassword: qazwsxedcdanormparol
+
+CREATE TABLE IF NOT EXISTS releases (
+    release_name VARCHAR(255) PRIMARY KEY,
+    chart_name VARCHAR(255),
+    chart_version VARCHAR(255),
+    release_version INT,
+    status VARCHAR(255),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);

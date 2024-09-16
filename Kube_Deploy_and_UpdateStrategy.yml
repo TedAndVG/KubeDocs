@@ -1,3 +1,6 @@
+
+# Deployment is on the top of ReplicaSets and thus is more preffered than ReplicaSets
+
 Content:
     - Creating Deployment
     - App update with kubectl
@@ -15,6 +18,11 @@ Note:   Creating a Deployment automatically creates replicaSet object.
 Note:   For Deployment to update the app, we need to change 'template' section
         Make changes in template section and do 'kubectl apply -f deployment.yaml
          and "kubectl get pods -l app=http-server --watch"
+
+Note:   Deployment provides added functionality such as:
+        - Rolling Updates:  Rolling updates ensure that an application is updated gradually, one replica at a time, while ensuring that the overall availability of the application is not impacted.
+        - Rollback:         Deployments automatically rollback to a previous version of an application if an update fails.
+        - Version Control:  Similar to the previous feature, Deployments implement version control, hence allowing for the ability to rollback to a previous specific version.
 
 Creating Deployment manually:   kubectl create deployment <depl-name> --image=location/kuber --port=<port> --replicas=3
 Get Deployment info:            kubectl deployment <depl-name> -o yaml

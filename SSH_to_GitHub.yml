@@ -1,0 +1,17 @@
+Enable ssh for GitHub
+
+
+In Windows:
+	- Generate key pair in ~\.ssh\ dir.
+	- No need to change your permissions. Go to ~\.ssh, right-click Properties, Security Tab, Advanced. DISABLE INHERITANCE.
+	- When you are disabling the inheritance you will be asked if you want to copy the current inherited access right. 
+	- Accept that.
+	- Then, click on the Administrator user (the one that is not you) and Remove them. Apply. Done.
+
+
+On GitHub:
+	- Go to upper right  -> Settings -> SSH and GPG keys 
+	- New SSH key -> add public key content from ~\.ssh\
+	- Add SSH key
+
+
