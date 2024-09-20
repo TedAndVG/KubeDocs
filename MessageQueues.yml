@@ -1,0 +1,9 @@
+# Message Queues
+#
+# 19Sep2024
+
+Message Queues:
+    - Kaffka
+    - RabbitMQ:
+        - push-model, server pushes new msgs to clients
+    - Amazon SQS
