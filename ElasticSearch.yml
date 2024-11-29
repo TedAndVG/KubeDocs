@@ -1,0 +1,25 @@
+## 27Nov24
+
+
+Install: from https://www.elastic.co/downloads/elasticsearch, apt, yum, docker, ...
+Check:
+    export ES_URL=localhost:9200
+    curl -X GET $ES_URL
+    Response is like this:
+        {
+          "name" : "Heimdall",
+          "cluster_name" : "elasticsearch",
+          "version" : {
+            "number" : "2.2.1",
+            "build_hash" : "d045fc29d1932bce18b2e65ab8b297fbf6cd41a1",
+            "build_timestamp" : "2016-03-09T09:38:54Z",
+            "build_snapshot" : false,
+            "lucene_version" : "5.4.1"
+          },
+          "tagline" : "You Know, for Search"
+        }
+
+## ======= Workflow: =======
+Indexing:
+    Add a post into ES.
+

@@ -43,3 +43,30 @@ Ubuntu VPN Client setup:
             
             Click Add to save
             Turn the VPN switch ON
+
+# ---------------- Mobile --------------------------
+Mobile VPN setup:
+    Unzip the <username.zip> file. Its content is:
+        - <username>.sswan
+        - <username>.mobileconfig
+        - <username>.p12
+
+    Install app: strongSwan
+        in strongSwan:
+            - Import VPN profile
+            - Select file (from unzipped above): <username>.sswan
+            - Select user certificate: IMPORT CERTIFICATE FROM VPN PROFILE
+                - Choose certificate type: VPN or app certificate -> OK
+                - Certificate name: certificate for "IKEv2 VPN 85.10.232...." -> OK
+                - Select certificate ('strongSwan VPN Client has requested a certificate. etc....'): Certificate for "IKEv2 VPN 85.10.." (O=IKEv2 VPN,CN=<username>)
+                - IMPORT
+            - Long-touch new created VPN connection -> EDIT -> change 'Profile name (optional) -> SAVE
+
+Usage:
+    Connect to VPN:
+        - Open strongSwan app
+        - Tap the <VPN-Connection-name-created-above>, in the list
+    
+    Disconnect:
+        - Tap "Disconnect" in the same list
+        

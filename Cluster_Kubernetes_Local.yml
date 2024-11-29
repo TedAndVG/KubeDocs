@@ -1,0 +1,216 @@
+# Kubernetes Custom Cluster without Clouds
+# 10-Oct-2024
+
+
+# KUBEADM
+
+Kubeadm architecture:
+    Master Nodes:
+        Node: VM-01
+            Components:
+                - kubeadm: kubeadm
+                - kubectl
+                - kubelet
+                - Docker
+    Worker Nodes:
+        - Node: VM-02
+            Components:
+                - kubectl
+                - kubelet
+                - Docker
+                - Pods:
+                    - Pod1
+                    - Pod2
+                    ....
+        - Node: VM-03
+            Components:
+                - kubectl
+                - kubelet
+                - Docker
+                - Pods:
+                    - Pod1
+                    - Pod2
+                    ....
+    ....
+                        
+        
+KubaAdm Installation sequence:
+    - 1. Docker
+    - 2. KubeAdm
+
+
+KubaAdm Installation Process:
+    # Container runtime (Docker) part:
+    - Install the cluster’s container runtime - Docker:
+        Using Docker as the default container runtime, let’s start the installation on the machine (12 steps).    
+        - 1. First, update the existing repository in the machine with the following command:
+            apt-get update -y
+            
+        - 2. Next, install a few prerequisite packages. These allow apt to use secure channels using HTTPS:
+            apt-get install apt-transport-https ca-certificates curl gnupg lsb-release -y
+            
+        - 3. Then, add the GPG key from the official Docker repository:
+            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg –dearmor -o /usr/share/keyrings/docker- archive-keyring.gpg
+            
+        - 4. Add the Docker repository to the apt sources list:
+            echo “deb [arch=$(dpkg –print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable” | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        
+        - 5. Next, update the package information with Docker packages from the apt sources list:
+            apt-get update -y
+            
+        - 6. Finally, install Docker:
+            apt-get install docker-ce docker-ce-cli containerd.io -y
+            
+        - 7. Update the default Docker daemon configuration in /etc/docker/daemon.json:
+            cat <<EOF | sudo tee /etc/docker/daemon.json
+            # {
+            #   “exec-opts”: [“native.cgroupdriver=systemd”],
+            #   “log-driver”: “json-file”,
+            #   “log-opts”: {
+            #     “max-size”: “100m”
+            #   },
+            #   “storage-driver”: “overlay2”
+            # }
+            # EOF
+        
+        - 8. Enable the process to start on boot, and reload the Docker daemon:
+            systemctl enable docker
+            systemctl daemon-reload
+            systemctl restart docker
+        
+        - 9. To get the present status of the Docker daemon installed in your machine, use:
+            systemctl status docker
+            # Output:
+            # docker.service – Docker Application Container Engine
+                #Loaded: loaded (/lib/systemd/system/docker.service; enabled; vendor preset: enabled)
+                #Active: active (running) since Fri 2021-12-31 00:24:42 UTC; 5s ago
+            # ..
+            # .. output truncated ...
+            # ..
+        
+        - 10. Now, let’s render the version information in an easy-to-read layout:
+            - docker –version
+            # Output:
+            # Docker version 20.10.12, build e91ed57
+        
+        - 11. If we want to access the Docker from non-root user-space, create a new Docker group and add the current userspace to it:
+            - usermod -aG docker $USER
+            - groupadd docker (? - check sequence)
+        
+        - 12. We’ll then run a hello-world image to check every component is working:
+            - docker run hello-world
+            # Output:
+            # Hello from Docker!
+            # This message shows that your installation appears to be working correctly.
+            # ..
+            # .. output truncated ..
+            # ..
+        Now Docker is successfully installed and running on the machine.
+    
+    # KubeAdm part:
+    - Install the KubeAdm itself:        
+        - Add the Kubernetes repo GPG key into the key manager:
+            - curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        - Add the Kubernetes repo details to the repository source list:
+            - echo “deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main” | sudo tee /etc/apt/sources.list.d/kubernetes.list
+        - Here, the installation comes in three pieces:
+            - kubelet
+            - kubeadm
+            - kubectl
+            Let’s update the repository and start the installation:
+                - apt update -y
+                - apt-get install -y kubelet kubeadm kubectl
+    
+                To hold the installed packages with current versions, use the command below (These packages cannot be upgraded or removed until the hold mark is removed):
+                    - apt-mark hold kubelet kubeadm kubectl
+    
+            Enable the process to start on boot and reload the kubelet daemon. Check the current status of the daemon:
+                - systemctl enable kubelet
+                - systemctl daemon-reload
+                - systemctl restart kubelet.service
+            
+            kubeadm installation is now complete. Let’s create the new cluster using kubeadm init:
+                - kubeadm init
+                    # Output:
+                    # [init] Using Kubernetes version: v1.23.1
+                    # [preflight] Running pre-flight checks
+                    # [preflight] Pulling images required for setting up a Kubernetes cluster
+                    # …
+                    # … output truncated …
+                    # …
+                    # [addons] Applied essential addon: CoreDNS
+                    # [addons] Applied essential addon: kube-proxy
+                    # Your Kubernetes control-plane has initialized successfully!
+    # ======== At this stage the installation complete =========
+    
+Cluster Usage:  To start using your cluster, there are following two ways: you need to run the following as a regular user.
+    - 1. Usage start: Cluster config file management
+        - Run the following as a regular user:
+            - mkdir -p $HOME/.kube
+            - sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+            - sudo chown $(id -u):$(id -g) $HOME/.kube/config
+        - Alternatively, run the following as the root user:
+            - export KUBECONFIG=/etc/kubernetes/admin.conf
+    
+    - 2. Now deploy a pod network to the cluster, run: kubectl apply -f [podnetwork].yaml
+            'podnetwork' may be:
+                - Calico    https://docs.projectcalico.org/v3.15/manifests/calico.yaml
+                - Flannel   https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+                - ......
+                
+            - Example of using Calico as the cluster’s network provider:
+                - kubectl apply -f https://docs.projectcalico.org/v3.15/manifests/calico.yaml
+                # Output:
+                # configmap/calico-config
+                # …
+                # … output truncated …
+                # …
+                # createdclusterrole.rbac.authorization.k8s.io/calico-kube-controllers createdclusterrolebinding.rbac.authorization.k8s.io/calico-kube-controllers
+                # createdserviceaccount/calico-kube-controllers created
+
+    - 3. Now, we can join many worker nodes by running the following join command on each worker node as root:
+        - kubeadm join 10.190.0.2:6443 –token ls7ryl.mlrc2oaoob15gbog –discovery-token-ca-cert-hash sha256:13aa6e021229373bfdceb8537ab50056c7fb6b4b67435ad165ceb1b5131c9dfc
+        # Output:
+        # [preflight] Running pre-flight checks
+        # [preflight] Reading configuration from the cluster…
+        # …
+        # … output truncated …
+        # …
+        # [kubelet-start] Starting the kubelet
+        # [kubelet-start] Waiting for the kubelet to perform the TLS Bootstrap…
+        # This node has joined the cluster:
+        # * Certificate signing request was sent to apiserver and a response was received.
+        # * The Kubelet was informed of the new secure connection details.
+
+    - 3-A. Clean up (if there is a need due to some reason):
+        - Remove the node:
+            Talking to the control-plane node with the appropriate credentials, run:
+                - kubectl drain <node-name> --delete-emptydir-data --force --ignore-daemonsets
+            
+            Before removing the node, reset the state installed by kubeadm:
+                - kubeadm reset
+    
+            The reset process does not reset or clean up iptables rules or IPVS tables. If you wish to reset iptables, you must do so manually:
+                - iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+    
+            If you want to reset the IPVS tables, you must run the following command:
+                - ipvsadm -C
+    
+            Now remove the node:
+                - kubectl delete node <node-name>
+            If there is a wish to start over, run kubeadm init or kubeadm join with the appropriate arguments.
+        
+        - Clean up the control plane:
+            'kubeadm reset' to be used on the control plane host to trigger a best-effort clean up.
+
+See the kubeadm reset reference documentation for more information about this subcommand and its options
+    - 4. Check: Execute the below command to check the node joining status on the cluster:
+        - kubectl get nodes
+        # Output:
+        # NAME           STATUS     ROLES                  AGE   VERSION
+        # iod-master     Ready      control-plane,master   44h   v1.23.1
+        # iod-worker-2   NotReady   <none>                 32h   v1.23.1
+        # iod-worker-3   Ready      <none>                 32s   v1.23.1
+
+
+
