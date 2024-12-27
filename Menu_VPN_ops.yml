@@ -10,7 +10,7 @@ Creating VPN user:
     Actions:
       - ssh tad@85.10.232.246 (refer to Roboform)
       - Run:    sudo /opt/src/ikev2.sh
-      - pack 3 files inti zip and pass to client
+      - pack 3 files into zip and pass to client
 
 # ------------------- Ubuntu Linux -------------------
 Ubuntu VPN Client setup:
